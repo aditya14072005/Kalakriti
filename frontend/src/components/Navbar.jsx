@@ -18,7 +18,7 @@ const NavBar = () => {
   const searchRef = useRef(null);
   const profileRef = useRef(null);
 
-  const { getCartCount, getWishlistCount, token, logout, navigate, search, setSearch, showSearch, setShowSearch, role } = useContext(ShopContext);
+  const { getCartCount, getWishlistCount, token, logout, navigate, search, setSearch, showSearch, setShowSearch, role, userName } = useContext(ShopContext);
 
   // Voice recognition
   const startVoiceSearch = () => {
@@ -109,7 +109,7 @@ const NavBar = () => {
   return (
     <>
       <div className={`sticky top-0 z-50 relative transition-all duration-500
-        ${scrolled ? "bg-white/90 backdrop-blur-md shadow-md border-b border-yellow-400" : "bg-transparent"}`}>
+        ${scrolled ? "bg-white/90 backdrop-blur-md shadow-md border-b border-yellow-400" : "bg-white/40 backdrop-blur-sm border-b border-orange-200/60"}`}>
 
         <div className={`flex items-center justify-between font-medium transition-all duration-500 px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]
           ${scrolled ? "py-2" : "py-4"}`}>
@@ -136,8 +136,12 @@ const NavBar = () => {
             className={`hidden sm:flex gap-6 text-gray-700 transition-all duration-500 ${scrolled ? "text-xs" : "text-sm"}`}
             onMouseLeave={() => setHoveredNav(null)}
           >
-            {["/", "/collection", "/vendor", "/contact", "/about"].map((path, i) => {
-              const label = ["HOME", "COLLECTION", "VENDOR", "CONTACT", "ABOUT"][i];
+            {[
+              ...(role === 'vendor' ? [["/vendor-dashboard", "VENDOR DASHBOARD"]] : role === 'admin' ? [["/admin", "DASHBOARD"]] : []),
+              ["/", "HOME"], ["/collection", "COLLECTION"],
+              ...(!token ? [["/vendor", "BECOME A VENDOR"]] : []),
+              ["/contact", "CONTACT"], ["/about", "ABOUT"]
+            ].map(([path, label], i) => {
               const isHovered = hoveredNav === i;
               const isOther = hoveredNav !== null && hoveredNav !== i;
               return (
@@ -174,13 +178,13 @@ const NavBar = () => {
               onMouseLeave={() => { setSearchHovered(false); setHoveredZone(null); }}
               style={reelStyle('search')}>
               <div className={`flex items-center overflow-hidden transition-all duration-500 ease-in-out
-                ${showSearch ? "w-56 bg-white border border-orange-300 shadow-lg shadow-orange-100" : "bg-transparent border border-transparent"}
-                ${scrolled ? "rounded-full px-1 py-1" : "rounded-full px-1.5 py-1.5"}`}>
+                ${showSearch ? "w-72 bg-white border border-orange-300 shadow-lg shadow-orange-100" : "bg-transparent border border-transparent"}
+                ${scrolled ? "rounded-full px-1 py-0.5" : "rounded-full px-1 py-0.5"}`}>
                 <button
                   onClick={handleSearchToggle}
                   style={{ transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
                   className={`flex-shrink-0 relative flex items-center justify-center rounded-full overflow-visible
-                    ${scrolled ? "w-7 h-7" : "w-10 h-10"}`}>
+                    ${scrolled ? "w-6 h-6" : "w-7 h-7"}`}>
 
                   {/* Ripple ring on hover */}
                   <span style={{
@@ -341,76 +345,6 @@ const NavBar = () => {
               </div>
             </div>
 
-            {/* Profile */}
-            <div ref={profileRef} className="relative">
-              <button
-                onClick={() => setProfileOpen(!profileOpen)}
-                onMouseEnter={() => { setProfileHovered(true); setHoveredZone('profile'); }}
-                onMouseLeave={() => { setProfileHovered(false); setHoveredZone(null); }}
-                style={{
-                  ...reelStyle('profile'),
-                  transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transform: profileOpen ? 'scale(1.1)' : profileHovered ? 'scale(1.2) translateY(-3px)' : 'scale(1)',
-                  background: profileOpen ? '#f97316' : profileHovered ? 'linear-gradient(135deg, #fde68a, #fb923c)' : 'transparent',
-                  boxShadow: profileHovered && !profileOpen ? '0 4px 15px rgba(249,115,22,0.4), 0 0 0 4px rgba(249,115,22,0.1)' : profileOpen ? '0 4px 15px rgba(249,115,22,0.5)' : 'none',
-                  border: profileHovered || profileOpen ? '1px solid #fb923c' : '1px solid transparent',
-                }}
-                className={`flex items-center justify-center rounded-full ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
-                <img
-                  src={assets.profile_icon}
-                  style={{
-                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    transform: profileHovered ? 'rotateY(180deg) scale(1.1)' : 'rotateY(0deg)',
-                    filter: profileHovered ? 'brightness(0) invert(0.3) sepia(1) saturate(3) hue-rotate(340deg)' : 'none',
-                  }}
-                  className={scrolled ? "w-3.5" : "w-4"} alt="profile" />
-              </button>
-              <div className={`absolute right-0 top-10 transition-all duration-300 origin-top-right
-                ${profileOpen ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}>
-                <div className="w-44 bg-white rounded-2xl shadow-xl border border-orange-100 overflow-hidden">
-                  <div className="px-3 py-2 bg-orange-50 border-b border-orange-100">
-                    <p className="text-xs text-orange-600 font-semibold uppercase tracking-wide">
-                      {token ? (role === 'vendor' ? '🏪 Vendor' : role === 'admin' ? '⚙️ Admin' : '👤 Customer') : "Welcome"}
-                    </p>
-                  </div>
-                  <div className="py-1">
-                    {token ? (
-                      <>
-                        {role === 'customer' && (
-                          <button onClick={() => { navigate('/orders'); setProfileOpen(false) }}
-                            className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2">
-                            📦 My Orders
-                          </button>
-                        )}
-                        {role === 'vendor' && (
-                          <button onClick={() => { navigate('/vendor-dashboard'); setProfileOpen(false) }}
-                            className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2">
-                            🏪 Vendor Dashboard
-                          </button>
-                        )}
-                        {role === 'admin' && (
-                          <button onClick={() => { navigate('/admin'); setProfileOpen(false) }}
-                            className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2">
-                            ⚙️ Admin Panel
-                          </button>
-                        )}
-                        <hr className="my-1 border-orange-100" />
-                        <button onClick={() => { logout(); setProfileOpen(false) }}
-                          className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-50 hover:text-red-600 transition flex items-center gap-2">
-                          🚪 Logout
-                        </button>
-                      </>
-                    ) : (
-                      <button onClick={() => { navigate('/login'); setProfileOpen(false) }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2">
-                        🔑 Login
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Wishlist */}
             <button
               onClick={() => navigate('/wishlist')}
@@ -436,33 +370,183 @@ const NavBar = () => {
             </button>
 
             {/* Cart */}
-            <Link to="/cart"
+            <div className='relative'
               onMouseEnter={() => { setCartHovered(true); setHoveredZone('cart'); }}
-              onMouseLeave={() => { setCartHovered(false); setHoveredZone(null); }}
-              style={{
-                ...reelStyle('cart'),
-                transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                transform: cartHovered ? 'scale(1.2) rotate(12deg)' : 'scale(1) rotate(0deg)',
-                background: cartHovered ? 'linear-gradient(135deg, #fed7aa, #fb923c)' : 'transparent',
-                boxShadow: cartHovered ? '0 4px 18px rgba(249,115,22,0.45), 0 0 0 4px rgba(249,115,22,0.12)' : 'none',
-                border: cartHovered ? '1px solid #fb923c' : '1px solid transparent',
-              }}
-              className={`relative flex items-center justify-center rounded-full ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
-              <img
-                src={assets.cart_icon}
+              onMouseLeave={() => { setCartHovered(false); setHoveredZone(null); }}>
+              {/* Flying dots animation */}
+              {cartHovered && [0,1,2].map(i => (
+                <span key={i} style={{
+                  position:'absolute', width:'6px', height:'6px', borderRadius:'50%',
+                  background:'#f97316', pointerEvents:'none', zIndex:20,
+                  top: `${[-8,-12,-6][i]}px`,
+                  left: `${[2,8,14][i]}px`,
+                  animation: `kk-fly-${i} 0.45s ease-in forwards`,
+                }}/>
+              ))}
+              <style>{`
+                @keyframes kk-fly-0 { from{transform:translate(0,0) scale(1);opacity:1} to{transform:translate(2px,14px) scale(0.3);opacity:0} }
+                @keyframes kk-fly-1 { from{transform:translate(0,0) scale(1);opacity:1} to{transform:translate(0px,16px) scale(0.3);opacity:0} }
+                @keyframes kk-fly-2 { from{transform:translate(0,0) scale(1);opacity:1} to{transform:translate(-2px,14px) scale(0.3);opacity:0} }
+              `}</style>
+              <Link to="/cart"
                 style={{
+                  ...reelStyle('cart'),
                   transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transform: cartHovered ? 'rotate(-12deg) scale(1.15)' : 'rotate(0deg) scale(1)',
+                  transform: cartHovered ? 'scale(1.2) rotate(12deg)' : 'scale(1) rotate(0deg)',
+                  background: cartHovered ? 'linear-gradient(135deg, #fed7aa, #fb923c)' : 'transparent',
+                  boxShadow: cartHovered ? '0 4px 18px rgba(249,115,22,0.45), 0 0 0 4px rgba(249,115,22,0.12)' : 'none',
+                  border: cartHovered ? '1px solid #fb923c' : '1px solid transparent',
                 }}
-                className={scrolled ? "w-3.5" : "w-4"} alt="cart" />
-              {getCartCount() > 0 && (
-                <span
-                  style={{ transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)', transform: cartHovered ? 'scale(1.3)' : 'scale(1)' }}
-                  className="absolute -top-1 -right-1 w-3.5 h-3.5 flex items-center justify-center bg-orange-500 text-white rounded-full text-[8px] font-bold shadow-md shadow-orange-300">
-                  {getCartCount()}
-                </span>
-              )}
-            </Link>
+                className={`relative flex items-center justify-center rounded-full ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
+                <img
+                  src={assets.cart_icon}
+                  style={{
+                    transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transform: cartHovered ? 'rotate(-12deg) scale(1.15)' : 'rotate(0deg) scale(1)',
+                  }}
+                  className={scrolled ? "w-3.5" : "w-4"} alt="cart" />
+                {getCartCount() > 0 && (
+                  <span
+                    style={{ transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)', transform: cartHovered ? 'scale(1.3)' : 'scale(1)' }}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 flex items-center justify-center bg-orange-500 text-white rounded-full text-[8px] font-bold shadow-md shadow-orange-300">
+                    {getCartCount()}
+                  </span>
+                )}
+              </Link>
+            </div>
+
+            {/* Profile */}
+            <div ref={profileRef} className="relative">
+              <button
+                onClick={() => { if (!token) { navigate('/login'); return; } setProfileOpen(!profileOpen) }}
+                onMouseEnter={() => { setProfileHovered(true); setHoveredZone('profile'); }}
+                onMouseLeave={() => { setProfileHovered(false); setHoveredZone(null); }}
+                style={{
+                  ...reelStyle('profile'),
+                  transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transform: profileOpen ? 'scale(1.1)' : profileHovered ? 'scale(1.2) translateY(-3px)' : 'scale(1)',
+                  background: profileOpen ? '#f97316' : profileHovered ? 'linear-gradient(135deg, #fde68a, #fb923c)' : 'transparent',
+                  boxShadow: profileHovered && !profileOpen ? '0 4px 15px rgba(249,115,22,0.4), 0 0 0 4px rgba(249,115,22,0.1)' : profileOpen ? '0 4px 15px rgba(249,115,22,0.5)' : 'none',
+                  border: profileHovered || profileOpen ? '1px solid #fb923c' : '1px solid transparent',
+                }}
+                className={`flex items-center justify-center rounded-full ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
+                <img
+                  src={assets.profile_icon}
+                  style={{
+                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transform: profileHovered ? 'rotateY(180deg) scale(1.1)' : 'rotateY(0deg)',
+                    filter: profileHovered ? 'brightness(0) invert(0.3) sepia(1) saturate(3) hue-rotate(340deg)' : 'none',
+                  }}
+                  className={scrolled ? "w-3.5" : "w-4"} alt="profile" />
+              </button>
+              <div className={`absolute right-0 top-12 transition-all duration-300 origin-top-right z-50
+                ${profileOpen && token ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}>
+                <div className="w-64 bg-white rounded-2xl shadow-2xl border border-orange-100 overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+                    {token && userName ? (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg mb-2">
+                          {userName.charAt(0).toUpperCase()}
+                        </div>
+                        <p className="text-base font-bold text-gray-800 truncate">{userName}</p>
+                        <p className="text-xs text-orange-500 capitalize">{role}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm font-semibold text-gray-600">Welcome to Kalakriti</p>
+                    )}
+                  </div>
+                  <div className="py-2">
+                    {token ? (
+                      <>
+                        {role === 'customer' && (<>
+                          <button onClick={() => { navigate('/profile'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">👤</span> Profile Settings
+                          </button>
+                          <button onClick={() => { navigate('/orders'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">📦</span> My Orders
+                          </button>
+                          <button onClick={() => { navigate('/profile', { state: { tab: 'addresses' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">📍</span> Manage Addresses
+                          </button>
+                          <button onClick={() => { navigate('/orders', { state: { tab: 'track' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">🚚</span> Track My Order
+                          </button>
+                          <button onClick={() => { navigate('/orders', { state: { tab: 'returns' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">↩️</span> Returns & Exchanges
+                          </button>
+                          <button onClick={() => { navigate('/contact'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">💬</span> Help & Support
+                          </button>
+                        </>)}
+                        {role === 'vendor' && (<>
+                          <button onClick={() => { navigate('/profile'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">👤</span> Profile Settings
+                          </button>
+                          <button onClick={() => { navigate('/vendor-dashboard'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">🏪</span> Dashboard
+                          </button>
+                          <button onClick={() => { navigate('/vendor-dashboard', { state: { tab: 'products' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">📦</span> My Products
+                          </button>
+                          <button onClick={() => { navigate('/vendor-dashboard', { state: { tab: 'orders' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">📋</span> Order Management
+                          </button>
+                          <button onClick={() => { navigate('/vendor-dashboard', { state: { tab: 'returns' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">↩️</span> Returns & Exchanges
+                          </button>
+                          <button onClick={() => { navigate('/contact'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">💬</span> Help & Support
+                          </button>
+                        </>)}
+                        {role === 'admin' && (<>
+                          <button onClick={() => { navigate('/profile'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">👤</span> Profile Settings
+                          </button>
+                          <button onClick={() => { navigate('/admin'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">⚙️</span> Admin Panel
+                          </button>
+                          <button onClick={() => { navigate('/admin', { state: { tab: 'users' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">👥</span> Manage Users
+                          </button>
+                          <button onClick={() => { navigate('/admin', { state: { tab: 'orders' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">🛒</span> Order Management
+                          </button>
+                          <button onClick={() => { navigate('/admin', { state: { tab: 'returns' } }); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">↩️</span> Returns & Exchanges
+                          </button>
+                          <button onClick={() => { navigate('/contact'); setProfileOpen(false) }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-3">
+                            <span className="text-base">💬</span> Help & Support
+                          </button>
+                        </>)}
+                        <hr className="my-2 border-orange-100" />
+                        <button onClick={() => { logout(); setProfileOpen(false) }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition flex items-center gap-3">
+                          <span className="text-base">🚪</span> Logout
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Mobile Menu */}
             <button
@@ -504,10 +588,15 @@ const NavBar = () => {
               </button>
             </div>
             <div className="flex flex-col py-3">
-              {["/", "/collection", "/vendor", "/contact", "/about"].map((path, i) => (
+              {[
+                ...(role === 'vendor' ? [["/vendor-dashboard", "Vendor Dashboard"]] : role === 'admin' ? [["/admin", "Vendor Requests"]] : []),
+                ["/", "Home"], ["/collection", "Collection"],
+                ...(!token ? [["/vendor", "Become a Vendor"]] : []),
+                ["/contact", "Contact"], ["/about", "About"]
+              ].map(([path, label], i) => (
                 <NavLink key={i} to={path} onClick={() => setVisible(false)}
                   className="px-5 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition">
-                  {["Home", "Collection", "Vendor", "Contact", "About"][i]}
+                  {label}
                 </NavLink>
               ))}
             </div>

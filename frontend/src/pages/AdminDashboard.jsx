@@ -1,11 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { ShopContext } from '../context/ShopContext'
 
 const AdminDashboard = () => {
     const { backendUrl, token, role, navigate, logout } = useContext(ShopContext)
-    const [tab, setTab] = useState('overview')
+    const location = useLocation()
+    const [tab, setTab] = useState(location.state?.tab || 'overview')
     const [productSubTab, setProductSubTab] = useState('approved')
     const [addForm, setAddForm] = useState({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false })
     const [addImages, setAddImages] = useState({ image1: null, image2: null, image3: null, image4: null })
@@ -16,6 +18,11 @@ const AdminDashboard = () => {
     const [orders, setOrders] = useState([])
     const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'vendor' })
     const [showCreate, setShowCreate] = useState(false)
+    const [rejectModal, setRejectModal] = useState(null) // productId
+    const [rejectReason, setRejectReason] = useState('')
+    const [expandedOrder, setExpandedOrder] = useState(null)
+    const [productModal, setProductModal] = useState(null) // product object
+    const [vendorRequests, setVendorRequests] = useState([])
 
     const h = { headers: { token } }
 
@@ -26,19 +33,34 @@ const AdminDashboard = () => {
 
     const fetchAll = async () => {
         try {
-            const [s, u, p, o, pending] = await Promise.all([
+            const [s, u, p, o, pending, vr] = await Promise.all([
                 axios.get(`${backendUrl}/api/admin/stats`, h),
                 axios.get(`${backendUrl}/api/admin/users`, h),
                 axios.get(`${backendUrl}/api/admin/products`, h),
                 axios.get(`${backendUrl}/api/admin/orders`, h),
                 axios.get(`${backendUrl}/api/product/pending`, h),
+                axios.get(`${backendUrl}/api/admin/vendor-requests`, h),
             ])
             if (s.data.success) setStats(s.data.stats)
             if (u.data.success) setUsers(u.data.users)
             if (p.data.success) setProducts(p.data.products)
             if (o.data.success) setOrders(o.data.orders)
             if (pending.data.success) setPendingProducts(pending.data.products)
+            if (vr.data.success) setVendorRequests(vr.data.requests)
         } catch (e) { toast.error(e.message) }
+    }
+
+    const approveVendorReq = async (userId) => {
+        const { data } = await axios.post(`${backendUrl}/api/admin/vendor-request/approve`, { userId }, h)
+        if (data.success) { toast.success('Vendor approved!'); fetchAll() }
+        else toast.error(data.message)
+    }
+
+    const rejectVendorReq = async (userId) => {
+        const reason = prompt('Reason for rejection (optional):')
+        const { data } = await axios.post(`${backendUrl}/api/admin/vendor-request/reject`, { userId, reason }, h)
+        if (data.success) { toast.success('Request rejected'); fetchAll() }
+        else toast.error(data.message)
     }
 
     const approveProduct = async (productId) => {
@@ -48,9 +70,12 @@ const AdminDashboard = () => {
     }
 
     const rejectProduct = async (productId) => {
-        if (!confirm('Reject and delete this product?')) return
-        const { data } = await axios.post(`${backendUrl}/api/product/reject`, { productId }, h)
-        if (data.success) { toast.success('Product rejected'); fetchAll() }
+        setRejectModal(productId)
+    }
+
+    const confirmReject = async () => {
+        const { data } = await axios.post(`${backendUrl}/api/product/reject`, { productId: rejectModal, reason: rejectReason }, h)
+        if (data.success) { toast.success('Product rejected'); setRejectModal(null); setRejectReason(''); fetchAll() }
         else toast.error(data.message)
     }
 
@@ -105,6 +130,12 @@ const AdminDashboard = () => {
         else toast.error(data.message)
     }
 
+    const updateOrderPayment = async (orderId, payment) => {
+        const { data } = await axios.post(`${backendUrl}/api/order/update-payment`, { orderId, payment }, h)
+        if (data.success) { toast.success('Payment updated'); fetchAll() }
+        else toast.error(data.message)
+    }
+
     const deleteOrder = async (orderId) => {
         if (!confirm('Delete this order?')) return
         const { data } = await axios.delete(`${backendUrl}/api/admin/order/delete`, { data: { orderId }, headers: { token } })
@@ -125,14 +156,17 @@ const AdminDashboard = () => {
 
     const tabs = [
         { id: 'overview', label: '📊 Overview' },
+        { id: 'vendor-requests', label: `🏪 Vendor Requests${vendorRequests.length > 0 ? ` (${vendorRequests.length})` : ''}` },
         { id: 'users', label: '👥 Users' },
         { id: 'products', label: `📦 Products ${pendingProducts.length > 0 ? `(${pendingProducts.length} pending)` : ''}` },
         { id: 'orders', label: '🛒 Orders' },
+        { id: 'returns', label: '↩️ Returns' },
     ]
 
     const statCards = [
         { label: 'Total Users', value: stats.users, icon: '👥', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-        { label: 'Total Products', value: stats.products, icon: '📦', color: 'bg-orange-50 border-orange-200 text-orange-700' },
+        { label: 'Total Products', value: stats.products, icon: '📦', color: 'bg-orange-50 border-orange-200 text-orange-700',
+          sub: stats.products ? `✅ ${stats.approvedProducts} approved · ⏳ ${stats.pendingProducts} pending · ❌ ${stats.rejectedProducts} rejected` : null },
         { label: 'Total Orders', value: stats.orders, icon: '🛒', color: 'bg-green-50 border-green-200 text-green-700' },
         { label: 'Revenue', value: `₹${(stats.revenue || 0).toLocaleString()}`, icon: '💰', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
         { label: 'Pending Payments', value: stats.pending, icon: '⏳', color: 'bg-red-50 border-red-200 text-red-700' },
@@ -148,7 +182,7 @@ const AdminDashboard = () => {
             {/* Admin Navbar */}
             <div className='bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40'>
                 <div className='max-w-7xl mx-auto px-6 py-3 flex items-center justify-between'>
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-3 cursor-pointer hover:opacity-80 transition' onClick={() => navigate('/')}>
                         <span className='text-2xl'>⚙️</span>
                         <div>
                             <p className='font-bold text-gray-800 text-sm leading-none'>KALAKRITI</p>
@@ -170,6 +204,58 @@ const AdminDashboard = () => {
             </div>
 
             <div className='max-w-7xl mx-auto px-6 pt-6 pb-16'>
+
+            {/* Product Detail Modal */}
+            {productModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setProductModal(null)}>
+                    <div className='bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4' onClick={e => e.stopPropagation()}>
+                        <div className='flex items-start justify-between'>
+                            <h3 className='text-lg font-semibold text-gray-800'>{productModal.name}</h3>
+                            <button onClick={() => setProductModal(null)} className='text-gray-400 hover:text-gray-600 text-xl leading-none'>✕</button>
+                        </div>
+                        <div className='flex gap-2 flex-wrap'>
+                            {productModal.image?.map((img, i) => (
+                                <img key={i} src={img} className='w-20 h-20 object-cover rounded-lg border border-gray-100' alt='' />
+                            ))}
+                        </div>
+                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                            <div><p className='text-xs text-gray-400'>Category</p><p className='font-medium text-gray-700'>{productModal.category}</p></div>
+                            <div><p className='text-xs text-gray-400'>Sub Category</p><p className='font-medium text-gray-700'>{productModal.subCategory}</p></div>
+                            <div><p className='text-xs text-gray-400'>Price</p><p className='font-bold text-orange-600'>₹{productModal.price}</p></div>
+                            <div><p className='text-xs text-gray-400'>Vendor</p><p className='font-medium text-gray-700'>{productModal.vendorName || 'Admin'}</p></div>
+                            <div><p className='text-xs text-gray-400'>Sizes</p><p className='font-medium text-gray-700'>{productModal.sizes?.join(', ') || '—'}</p></div>
+                            <div><p className='text-xs text-gray-400'>Bestseller</p><p className='font-medium text-gray-700'>{productModal.bestseller ? '⭐ Yes' : 'No'}</p></div>
+                            <div><p className='text-xs text-gray-400'>Status</p><p className='font-medium text-gray-700 capitalize'>{productModal.status}</p></div>
+                            <div><p className='text-xs text-gray-400'>Added</p><p className='font-medium text-gray-700'>{new Date(productModal.date || productModal.createdAt).toLocaleDateString()}</p></div>
+                        </div>
+                        {productModal.description && (
+                            <div><p className='text-xs text-gray-400 mb-1'>Description</p><p className='text-sm text-gray-600 leading-relaxed'>{productModal.description}</p></div>
+                        )}
+                        {productModal.rejectReason && (
+                            <div className='bg-red-50 rounded-lg p-3'><p className='text-xs text-red-400 mb-1'>Reject Reason</p><p className='text-sm text-red-600'>{productModal.rejectReason}</p></div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Reject Reason Modal */}
+            {rejectModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center'>
+                    <div className='bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-4'>
+                        <h3 className='text-lg font-semibold text-gray-700'>Reject Product</h3>
+                        <p className='text-sm text-gray-500'>Provide a reason so the vendor knows what to fix.</p>
+                        <textarea
+                            rows={3} placeholder='Reason for rejection...'
+                            value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                            className='border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none'
+                        />
+                        <div className='flex gap-3'>
+                            <button onClick={confirmReject} className='flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 transition'>Reject</button>
+                            <button onClick={() => { setRejectModal(null); setRejectReason('') }} className='flex-1 border border-gray-300 py-2 rounded-lg text-sm hover:bg-gray-50 transition'>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Create Account Modal */}
             {showCreate && (
@@ -214,6 +300,7 @@ const AdminDashboard = () => {
                                 <p className='text-2xl mb-2'>{s.icon}</p>
                                 <p className='text-2xl font-bold'>{s.value ?? '—'}</p>
                                 <p className='text-xs mt-1 opacity-70'>{s.label}</p>
+                                {s.sub && <p className='text-[10px] mt-1.5 opacity-60 leading-relaxed'>{s.sub}</p>}
                             </div>
                         ))}
                     </div>
@@ -250,6 +337,56 @@ const AdminDashboard = () => {
                                 {users.length === 0 && <p className='text-gray-400 text-sm'>No users yet</p>}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Vendor Requests */}
+            {tab === 'vendor-requests' && (
+                <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                    <div className='p-4 border-b border-gray-100'>
+                        <p className='font-semibold text-gray-700'>Pending Vendor Requests ({vendorRequests.length})</p>
+                    </div>
+                    <div className='flex flex-col divide-y divide-gray-50'>
+                        {vendorRequests.map((u, i) => (
+                            <div key={i} className='flex items-start gap-4 px-4 py-4 hover:bg-orange-50/30 transition'>
+                                <div className='w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg flex-shrink-0'>
+                                    {u.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <div className='flex-1 min-w-0'>
+                                    <p className='font-medium text-gray-800 text-sm'>{u.name}</p>
+                                    <p className='text-xs text-gray-400'>{u.email}</p>
+                                    {u.vendorRequest?.data && (
+                                        <div className='mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500'>
+                                            {u.vendorRequest.data.companyName && <span>🏢 {u.vendorRequest.data.companyName}</span>}
+                                            {u.vendorRequest.data.businessType && <span>📋 {u.vendorRequest.data.businessType}</span>}
+                                            {u.vendorRequest.data.phone && <span>📞 {u.vendorRequest.data.phone}</span>}
+                                            {u.vendorRequest.data.businessAddress && <span>📍 {u.vendorRequest.data.businessAddress}</span>}
+                                            {u.vendorRequest.data.businessDescription && (
+                                                <span className='col-span-2 text-gray-400 italic'>"{u.vendorRequest.data.businessDescription}"</span>
+                                            )}
+                                        </div>
+                                    )}
+                                    <p className='text-[10px] text-gray-300 mt-1'>Submitted: {new Date(u.vendorRequest?.submittedAt).toLocaleDateString()}</p>
+                                </div>
+                                <div className='flex gap-2 flex-shrink-0'>
+                                    <button onClick={() => approveVendorReq(u._id)}
+                                        className='text-green-600 text-xs border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-50 transition font-medium'>
+                                        Approve
+                                    </button>
+                                    <button onClick={() => rejectVendorReq(u._id)}
+                                        className='text-red-400 text-xs border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition'>
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {vendorRequests.length === 0 && (
+                            <div className='text-center py-16 text-gray-400'>
+                                <p className='text-4xl mb-3'>🏪</p>
+                                <p className='text-sm font-medium text-gray-500'>No pending vendor requests</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -327,7 +464,7 @@ const AdminDashboard = () => {
                             </div>
                             <div className='flex flex-col divide-y divide-gray-50'>
                                 {products.map((p, i) => (
-                                    <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition'>
+                                    <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setProductModal(p)}>
                                         <img src={p.image?.[0]} className='w-12 h-12 object-cover rounded-lg border border-gray-100' alt='' />
                                         <div className='flex-1 min-w-0'>
                                             <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
@@ -336,7 +473,7 @@ const AdminDashboard = () => {
                                         </div>
                                         <p className='font-semibold text-orange-600 text-sm'>₹{p.price}</p>
                                         {p.bestseller && <span className='bg-yellow-100 text-yellow-600 text-xs px-2 py-0.5 rounded-full'>⭐ Best</span>}
-                                        <button onClick={() => deleteProduct(p._id)}
+                                        <button onClick={e => { e.stopPropagation(); deleteProduct(p._id) }}
                                             className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition'>
                                             Delete
                                         </button>
@@ -440,7 +577,7 @@ const AdminDashboard = () => {
                             </div>
                             <div className='flex flex-col divide-y divide-gray-50'>
                                 {pendingProducts.map((p, i) => (
-                                    <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition'>
+                                    <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setProductModal(p)}>
                                         <img src={p.image?.[0]} className='w-12 h-12 object-cover rounded-lg border border-gray-100' alt='' />
                                         <div className='flex-1 min-w-0'>
                                             <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
@@ -448,11 +585,11 @@ const AdminDashboard = () => {
                                             <p className='text-xs text-blue-400'>by {p.vendorName || p.vendorId}</p>
                                         </div>
                                         <p className='font-semibold text-orange-600 text-sm'>₹{p.price}</p>
-                                        <button onClick={() => approveProduct(p._id)}
+                                        <button onClick={e => { e.stopPropagation(); approveProduct(p._id) }}
                                             className='text-green-600 text-xs border border-green-200 px-3 py-1 rounded-lg hover:bg-green-50 transition'>
                                             Approve
                                         </button>
-                                        <button onClick={() => rejectProduct(p._id)}
+                                        <button onClick={e => { e.stopPropagation(); rejectProduct(p._id) }}
                                             className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition'>
                                             Reject
                                         </button>
@@ -487,36 +624,90 @@ const AdminDashboard = () => {
                             </thead>
                             <tbody className='divide-y divide-gray-50'>
                                 {orders.map((o, i) => (
-                                    <tr key={i} className='hover:bg-orange-50/30 transition'>
-                                        <td className='px-4 py-3 text-gray-400 text-xs font-mono'>{o._id.slice(-8)}</td>
-                                        <td className='px-4 py-3 text-gray-600'>{o.items?.length || 0} items</td>
-                                        <td className='px-4 py-3 font-semibold text-orange-600'>₹{o.amount}</td>
-                                        <td className='px-4 py-3'>
-                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${o.payment ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                                                {o.payment ? 'Paid' : 'Pending'}
-                                            </span>
-                                        </td>
-                                        <td className='px-4 py-3 text-gray-500 text-xs'>{o.paymentMethod}</td>
-                                        <td className='px-4 py-3'>
-                                            <select value={o.status || 'Order Placed'} onChange={e => updateOrderStatus(o._id, e.target.value)}
-                                                className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
-                                                {['Order Placed', 'Packing', 'Shipped', 'Out for Delivery', 'Delivered'].map(s => (
-                                                    <option key={s}>{s}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className='px-4 py-3 text-gray-400 text-xs'>{new Date(o.date).toLocaleDateString()}</td>
-                                        <td className='px-4 py-3'>
-                                            <button onClick={() => deleteOrder(o._id)}
-                                                className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition'>
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <React.Fragment key={i}>
+                                        <tr className='hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setExpandedOrder(expandedOrder === i ? null : i)}>
+                                            <td className='px-4 py-3 text-gray-400 text-xs font-mono'>{o._id.slice(-8)} <span className='text-gray-300'>{expandedOrder === i ? '▲' : '▼'}</span></td>
+                                            <td className='px-4 py-3 text-gray-600'>{o.items?.length || 0} items</td>
+                                            <td className='px-4 py-3 font-semibold text-orange-600'>₹{o.amount}</td>
+                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => updateOrderPayment(o._id, !o.payment)}
+                                                    className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer border transition ${
+                                                        o.payment
+                                                            ? 'bg-green-100 text-green-600 border-green-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                                                            : 'bg-red-100 text-red-500 border-red-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
+                                                    }`}>
+                                                    {o.payment ? 'Paid ✓' : 'Unpaid ✗'}
+                                                </button>
+                                            </td>
+                                            <td className='px-4 py-3 text-gray-500 text-xs'>{o.paymentMethod}</td>
+                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                                <select value={o.status || 'Order Placed'} onChange={e => updateOrderStatus(o._id, e.target.value)}
+                                                    className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
+                                                    {['Order Placed', 'Packing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'].map(s => (
+                                                        <option key={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className='px-4 py-3 text-gray-400 text-xs'>{new Date(o.date).toLocaleDateString()}</td>
+                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                                <button onClick={() => deleteOrder(o._id)}
+                                                    className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition'>
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {expandedOrder === i && (
+                                            <tr>
+                                                <td colSpan={8} className='bg-orange-50/40 px-6 py-4'>
+                                                    <div className='grid sm:grid-cols-2 gap-4'>
+                                                        <div>
+                                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Items</p>
+                                                            <div className='flex flex-col gap-2'>
+                                                                {o.items?.map((item, j) => (
+                                                                    <div key={j} className='flex items-center gap-3 bg-white rounded-lg p-2 border border-gray-100'>
+                                                                        <img src={item.image?.[0]} className='w-10 h-10 object-cover rounded border' alt='' />
+                                                                        <div className='flex-1'>
+                                                                            <p className='text-xs font-medium text-gray-800'>{item.name}</p>
+                                                                            <p className='text-xs text-gray-400'>Size: {item.size} · Qty: {item.quantity}</p>
+                                                                        </div>
+                                                                        <p className='text-xs font-semibold text-orange-600'>₹{item.price * item.quantity}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Delivery Address</p>
+                                                            {o.address && (
+                                                                <p className='text-xs text-gray-600 leading-relaxed'>
+                                                                    {o.address.firstName} {o.address.lastName}<br/>
+                                                                    {o.address.street}, {o.address.city}<br/>
+                                                                    {o.address.state} {o.address.zipcode}, {o.address.country}<br/>
+                                                                    📞 {o.address.phone}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 ))}
                             </tbody>
                         </table>
                         {orders.length === 0 && <p className='text-center py-10 text-gray-400'>No orders yet</p>}
+                    </div>
+                </div>
+            )}
+            {/* Returns */}
+            {tab === 'returns' && (
+                <div className='bg-white rounded-2xl border border-gray-100 shadow p-6'>
+                    <p className='font-semibold text-gray-700 mb-1'>↩️ Returns & Exchanges</p>
+                    <p className='text-xs text-gray-400 mb-5'>Customer return requests submitted through the platform.</p>
+                    <div className='text-center py-16 text-gray-400'>
+                        <p className='text-4xl mb-3'>↩️</p>
+                        <p className='text-sm font-medium text-gray-500'>No return requests yet</p>
+                        <p className='text-xs mt-1'>When customers submit return requests, they will appear here.</p>
                     </div>
                 </div>
             )}

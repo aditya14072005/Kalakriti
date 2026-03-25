@@ -90,8 +90,22 @@ const approveProduct = async (req, res) => {
 // POST /api/product/reject  (admin only)
 const rejectProduct = async (req, res) => {
     try {
-        await productModel.findByIdAndDelete(req.body.productId);
+        const { productId, reason } = req.body;
+        await productModel.findByIdAndUpdate(productId, { status: 'rejected', rejectReason: reason || 'No reason provided' });
         res.json({ success: true });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/product/rejected  (vendor sees own rejected)
+const getRejectedProducts = async (req, res) => {
+    try {
+        const filter = req.role === 'admin'
+            ? { status: 'rejected' }
+            : { status: 'rejected', vendorId: req.userId.toString() };
+        const products = await productModel.find(filter);
+        res.json({ success: true, products });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -100,6 +114,10 @@ const rejectProduct = async (req, res) => {
 // DELETE /api/product/remove  (vendor only)
 const removeProduct = async (req, res) => {
     try {
+        const product = await productModel.findById(req.body.id);
+        if (!product) return res.json({ success: false, message: 'Product not found' });
+        if (req.role === 'vendor' && product.vendorId !== req.userId.toString())
+            return res.json({ success: false, message: 'Unauthorized' });
         await productModel.findByIdAndDelete(req.body.id);
         res.json({ success: true, message: 'Product removed' });
     } catch (error) {
@@ -107,10 +125,20 @@ const removeProduct = async (req, res) => {
     }
 };
 
-// GET /api/product/list  — only approved products
+// GET /api/product/list  — all approved products (public)
 const listProducts = async (req, res) => {
     try {
         const products = await productModel.find({ status: 'approved' });
+        res.json({ success: true, products });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/product/my-products  — vendor sees only their own approved products
+const myProducts = async (req, res) => {
+    try {
+        const products = await productModel.find({ status: 'approved', vendorId: req.userId.toString() });
         res.json({ success: true, products });
     } catch (error) {
         res.json({ success: false, message: error.message });
@@ -127,4 +155,4 @@ const getSingleProduct = async (req, res) => {
     }
 };
 
-export { addProduct, submitProduct, getPendingProducts, approveProduct, rejectProduct, removeProduct, listProducts, getSingleProduct };
+export { addProduct, submitProduct, getPendingProducts, approveProduct, rejectProduct, getRejectedProducts, removeProduct, listProducts, myProducts, getSingleProduct };

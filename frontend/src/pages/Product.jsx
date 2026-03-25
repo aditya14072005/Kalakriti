@@ -7,7 +7,7 @@ import { toast } from 'react-toastify'
 const Product = () => {
 
     const { productId } = useParams()
-    const { products, currency, addToCart, toggleWishlist, isInWishlist } = useContext(ShopContext)
+    const { products, currency, addToCart, toggleWishlist, isInWishlist, navigate } = useContext(ShopContext)
 
     const [product, setProduct] = useState(null)
     const [image, setImage] = useState('')
@@ -19,6 +19,19 @@ const Product = () => {
     }, [productId, products])
 
     if (!product) return <div className='text-center py-20'>Loading...</div>
+
+    const hasSizes = product.sizes && product.sizes.length > 0
+
+    const handleAddToCart = () => {
+        if (hasSizes && !size) { toast.error('Please select a size'); return }
+        addToCart(product._id, hasSizes ? size : 'one-size')
+    }
+
+    const handleBuyNow = () => {
+        if (hasSizes && !size) { toast.error('Please select a size'); return }
+        addToCart(product._id, hasSizes ? size : 'one-size')
+        navigate('/cart')
+    }
 
     return (
         <div className='border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100'>
@@ -50,29 +63,36 @@ const Product = () => {
                     <p className='mt-5 text-3xl font-medium'>{currency}{product.price}</p>
                     <p className='mt-5 text-gray-500 md:w-4/5'>{product.description}</p>
 
-                    <div className='flex flex-col gap-4 my-8'>
-                        <p className='font-medium'>Select Size</p>
-                        <div className='flex gap-2'>
-                            {product.sizes.map((s, i) => (
-                                <button key={i} onClick={() => setSize(s)}
-                                    className={`border py-2 px-4 bg-gray-100 ${size === s ? 'border-orange-500 bg-orange-50' : ''}`}>
-                                    {s}
-                                </button>
-                            ))}
+                    {hasSizes && (
+                        <div className='flex flex-col gap-4 my-8'>
+                            <p className='font-medium'>Select Size</p>
+                            <div className='flex gap-2'>
+                                {product.sizes.map((s, i) => (
+                                    <button key={i} onClick={() => setSize(s)}
+                                        className={`border py-2 px-4 bg-gray-100 ${size === s ? 'border-orange-500 bg-orange-50' : ''}`}>
+                                        {s}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    <div className='flex items-center gap-3'>
-                      <button
-                          onClick={() => { addToCart(product._id, size); toast.success('Added to cart!') }}
-                          className='bg-black text-white px-8 py-3 text-sm active:bg-gray-700'>
-                          ADD TO CART
-                      </button>
-                      <button
-                          onClick={() => { toggleWishlist(product._id); toast.success(isInWishlist(product._id) ? 'Removed from wishlist' : 'Added to wishlist') }}
-                          className={`px-6 py-3 text-sm border-2 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${isInWishlist(product._id) ? 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600' : 'bg-white text-pink-500 border-pink-300 hover:bg-pink-50 hover:border-pink-400'} hover:animate-heartbeat`}>
-                          {isInWishlist(product._id) ? <span className="text-2xl">♥</span> : <span className="text-2xl">♡</span>} {isInWishlist(product._id) ? 'Wishlist' : 'Add to Wishlist'}
-                      </button>
+                    <div className='flex items-center gap-3 mt-8 flex-wrap'>
+                        <button
+                            onClick={handleAddToCart}
+                            className='bg-black text-white px-8 py-3 text-sm active:bg-gray-700'>
+                            ADD TO CART
+                        </button>
+                        <button
+                            onClick={handleBuyNow}
+                            className='bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 text-sm transition active:bg-orange-700'>
+                            BUY NOW
+                        </button>
+                        <button
+                            onClick={() => toggleWishlist(product._id)}
+                            className={`px-6 py-3 text-sm border-2 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${isInWishlist(product._id) ? 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600' : 'bg-white text-pink-500 border-pink-300 hover:bg-pink-50 hover:border-pink-400'}`}>
+                            {isInWishlist(product._id) ? <span className="text-2xl">♥</span> : <span className="text-2xl">♡</span>} {isInWishlist(product._id) ? 'Wishlist' : 'Add to Wishlist'}
+                        </button>
                     </div>
 
                     <hr className='mt-8 sm:w-4/5' />

@@ -913,12 +913,12 @@ export const products = [
     {
         // 58
         _id: "aaacf",
-        name: "Women's Pink Textured Wrap Tie Kurti",
+        name: " Pink Textured Wrap Tie Kurti",
         description: "A soft pink wrap-style short kurti in textured diamond-pattern fabric with a side tie closure and V-neckline. Pairs perfectly with white palazzos or trousers. Ideal for office wear, casual outings, and informal gatherings.",
         price: 580,
         image: [p_img58],
-        category: "Women",
-        subCategory: "Kurtiwear",
+        category: "Men",
+        subCategory: "EthnicWear",
         sizes: ["S", "M", "L"],
         date: 1716675045448,
         bestseller: false

@@ -20,9 +20,9 @@ const About = () => {
       <div className='flex flex-col md:flex-row gap-12 items-center mb-16'>
         <img src={assets.about_img} className='w-full md:w-[45%] rounded-xl shadow-lg' alt="about" />
         <div className='flex flex-col gap-6 text-gray-600'>
-          <p>KALAKRITI is India's premier B2B marketplace, connecting businesses across the nation with quality products and reliable suppliers. Founded with a vision to streamline business procurement and foster growth in the Indian marketplace.</p>
+          <p>KALAKRITI is India's premier B2C marketplace, connecting businesses across the nation with quality products and reliable suppliers. Founded with a vision to streamline business procurement and foster growth in the Indian marketplace.</p>
           <p>Our platform serves manufacturers, wholesalers, retailers, and service providers, offering a comprehensive solution for business-to-business transactions. From industrial equipment to office supplies, we provide access to a wide range of products essential for business operations.</p>
-          <p>We are committed to building trust, ensuring quality, and facilitating seamless business relationships. Our advanced platform combines technology with business expertise to create India's most efficient B2B ecosystem.</p>
+          <p>We are committed to building trust, ensuring quality, and facilitating seamless business relationships. Our advanced platform combines technology with business expertise to create India's most efficient B2C ecosystem.</p>
           <div className='border-l-4 border-blue-400 pl-4 italic text-blue-700'>
             "Empowering businesses, connecting commerce."
           </div>
@@ -46,7 +46,7 @@ const About = () => {
 
       {/* Why Choose Us */}
       <div className='mb-16'>
-        <h3 className='text-2xl font-bold text-center text-gray-800 mb-8'>Why Choose KALAKRITI B2B?</h3>
+        <h3 className='text-2xl font-bold text-center text-gray-800 mb-8'>Why Choose KALAKRITI B2C?</h3>
         <div className='grid md:grid-cols-3 gap-6'>
           {[
             { icon: '🏭', title: 'Bulk Procurement', desc: 'Streamlined bulk ordering with competitive pricing and volume discounts.' },
@@ -70,7 +70,7 @@ const About = () => {
       {/* CTA */}
       <div className='text-center bg-blue-50 rounded-2xl p-10 border border-blue-200 mb-10'>
         <h3 className='text-2xl font-bold text-blue-700 mb-3'>Ready to Scale Your Business?</h3>
-        <p className='text-gray-600 mb-6'>Join India's leading B2B marketplace and connect with thousands of businesses nationwide.</p>
+        <p className='text-gray-600 mb-6'>Join India's leading B2C marketplace and connect with thousands of businesses nationwide.</p>
         <Link to='/vendor'>
           <button className='bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-semibold'>
             Join as a Vendor →

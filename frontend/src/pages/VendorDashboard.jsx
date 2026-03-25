@@ -1,21 +1,27 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { ShopContext } from '../context/ShopContext'
 
 const VendorDashboard = () => {
-    const { backendUrl, token, logout } = useContext(ShopContext)
-    const [activeTab, setActiveTab] = useState('overview')
+    const { backendUrl, token, logout, navigate } = useContext(ShopContext)
+    const location = useLocation()
+    const [activeTab, setActiveTab] = useState(location.state?.tab || 'overview')
     const [productSubTab, setProductSubTab] = useState('approved')
     const [products, setProducts] = useState([])
     const [pendingProducts, setPendingProducts] = useState([])
+    const [rejectedProducts, setRejectedProducts] = useState([])
     const [orders, setOrders] = useState([])
     const [analytics, setAnalytics] = useState({ totalRevenue: 0, totalOrders: 0, totalProducts: 0, monthlyGrowth: 0 })
+    const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    const [pwLoading, setPwLoading] = useState(false)
 
     const [productForm, setProductForm] = useState({
         name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false
     })
     const [images, setImages] = useState({ image1: null, image2: null, image3: null, image4: null })
+    const [productModal, setProductModal] = useState(null)
 
     const categories = ['Women', 'Men', 'Kids', 'Home Decor']
     const subCategories = {
@@ -27,6 +33,11 @@ const VendorDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
+            const { data } = await axios.get(`${backendUrl}/api/product/rejected`, { headers: { token } })
+            if (data.success) setRejectedProducts(data.products)
+        } catch (error) { console.error('Rejected fetch error:', error) }
+
+        try {
             const { data } = await axios.get(`${backendUrl}/api/product/pending`, { headers: { token } })
             if (data.success) setPendingProducts(data.products)
         } catch (error) {
@@ -34,11 +45,9 @@ const VendorDashboard = () => {
         }
 
         try {
-            const { data } = await axios.get(`${backendUrl}/api/product/list`)
+            const { data } = await axios.get(`${backendUrl}/api/product/my-products`, { headers: { token } })
             if (data.success) setProducts(data.products)
-        } catch (error) {
-            console.error('Products fetch error:', error)
-        }
+        } catch (error) { console.error('Products fetch error:', error) }
 
         try {
             const { data } = await axios.get(`${backendUrl}/api/order/vendor-orders`, { headers: { token } })
@@ -107,14 +116,58 @@ const VendorDashboard = () => {
         }
     }
 
+    const changePassword = async (e) => {
+        e.preventDefault()
+        if (pwForm.newPassword !== pwForm.confirmPassword) { toast.error('Passwords do not match'); return }
+        setPwLoading(true)
+        try {
+            const { data } = await axios.post(`${backendUrl}/api/user/change-password`, {
+                currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword
+            }, { headers: { token } })
+            if (data.success) { toast.success(data.message); setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }) }
+            else toast.error(data.message)
+        } catch (error) { toast.error(error.message) }
+        setPwLoading(false)
+    }
+
     useEffect(() => { fetchDashboardData() }, [])
 
 return (
         <div className='min-h-screen bg-gray-50'>
+            {/* Product Detail Modal */}
+            {productModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setProductModal(null)}>
+                    <div className='bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4' onClick={e => e.stopPropagation()}>
+                        <div className='flex items-start justify-between'>
+                            <h3 className='text-lg font-semibold text-gray-800'>{productModal.name}</h3>
+                            <button onClick={() => setProductModal(null)} className='text-gray-400 hover:text-gray-600 text-xl leading-none'>×</button>
+                        </div>
+                        <div className='flex gap-2 flex-wrap'>
+                            {productModal.image?.map((img, i) => (
+                                <img key={i} src={img} className='w-20 h-20 object-cover rounded-lg border border-gray-100' alt='' />
+                            ))}
+                        </div>
+                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                            <div><p className='text-xs text-gray-400'>Category</p><p className='font-medium text-gray-700'>{productModal.category}</p></div>
+                            <div><p className='text-xs text-gray-400'>Sub Category</p><p className='font-medium text-gray-700'>{productModal.subCategory}</p></div>
+                            <div><p className='text-xs text-gray-400'>Price</p><p className='font-bold text-blue-600'>₹{productModal.price}</p></div>
+                            <div><p className='text-xs text-gray-400'>Sizes</p><p className='font-medium text-gray-700'>{productModal.sizes?.join(', ') || '—'}</p></div>
+                            <div><p className='text-xs text-gray-400'>Bestseller</p><p className='font-medium text-gray-700'>{productModal.bestseller ? '⭐ Yes' : 'No'}</p></div>
+                            <div><p className='text-xs text-gray-400'>Status</p><p className='font-medium text-gray-700 capitalize'>{productModal.status}</p></div>
+                        </div>
+                        {productModal.description && (
+                            <div><p className='text-xs text-gray-400 mb-1'>Description</p><p className='text-sm text-gray-600 leading-relaxed'>{productModal.description}</p></div>
+                        )}
+                        {productModal.rejectReason && (
+                            <div className='bg-red-50 rounded-lg p-3'><p className='text-xs text-red-400 mb-1'>Reject Reason</p><p className='text-sm text-red-600'>{productModal.rejectReason}</p></div>
+                        )}
+                    </div>
+                </div>
+            )}
             {/* Vendor Navbar */}
             <div className='bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40'>
                 <div className='max-w-7xl mx-auto px-6 py-3 flex items-center justify-between'>
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-3 cursor-pointer hover:opacity-80 transition' onClick={() => navigate('/')}>
                         <span className='text-2xl'>🏪</span>
                         <div>
                             <p className='font-bold text-gray-800 text-sm leading-none'>KALAKRITI</p>
@@ -132,7 +185,7 @@ return (
             <div className='bg-white shadow-sm border-b'>
                 <div className='max-w-7xl mx-auto px-6 py-4'>
                     <h1 className='text-2xl font-bold text-gray-800'>Business Dashboard</h1>
-                    <p className='text-gray-600'>Manage your B2B operations and analytics</p>
+                    <p className='text-gray-600'>Manage your B2C operations and analytics</p>
                 </div>
             </div>
 
@@ -145,7 +198,9 @@ return (
                             { id: 'products', label: 'Products', icon: '📦' },
                             { id: 'orders', label: 'Orders', icon: '📋' },
                             { id: 'analytics', label: 'Analytics', icon: '📈' },
-                            { id: 'inventory', label: 'Inventory', icon: '🏭' }
+                            { id: 'inventory', label: 'Inventory', icon: '🏭' },
+                            { id: 'returns', label: 'Returns', icon: '↩️' },
+                            { id: 'account', label: 'Account', icon: '🔒' }
                         ].map(tab => (
                             <button
                                 key={tab.id}
@@ -263,6 +318,7 @@ return (
                                 { id: 'approved', label: `✅ Approved (${products.length})` },
                                 { id: 'add', label: '➕ Add Product' },
                                 { id: 'pending', label: `⏳ Pending (${pendingProducts.length})` },
+                                { id: 'rejected', label: `❌ Rejected (${rejectedProducts.length})` },
                             ].map(st => (
                                 <button key={st.id} onClick={() => setProductSubTab(st.id)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -281,13 +337,13 @@ return (
                                 </div>
                                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-5'>
                                     {products.map(p => (
-                                        <div key={p._id} className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition'>
+                                        <div key={p._id} className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer' onClick={() => setProductModal(p)}>
                                             <img src={p.image?.[0]} className='w-full h-32 object-cover rounded-lg mb-3' alt='' />
                                             <p className='font-semibold text-gray-800 text-sm mb-1'>{p.name}</p>
                                             <p className='text-xs text-gray-500 mb-2'>{p.category} • {p.subCategory}</p>
                                             <div className='flex items-center justify-between'>
                                                 <span className='font-bold text-blue-600'>₹{p.price}</span>
-                                                <button onClick={() => removeProduct(p._id)}
+                                                <button onClick={e => { e.stopPropagation(); removeProduct(p._id) }}
                                                     className='text-red-500 text-xs border border-red-200 px-3 py-1 rounded hover:bg-red-50 transition'>
                                                     Remove
                                                 </button>
@@ -388,6 +444,33 @@ return (
                                         Submit for Approval
                                     </button>
                                 </form>
+                            </div>
+                        )}
+
+                        {/* Rejected */}
+                        {productSubTab === 'rejected' && (
+                            <div className='bg-white rounded-xl shadow-sm border border-gray-200'>
+                                <div className='p-5 border-b border-gray-200'>
+                                    <p className='font-semibold text-gray-800'>Rejected Products ({rejectedProducts.length})</p>
+                                    <p className='text-xs text-gray-400 mt-1'>These products were rejected by admin. Fix the issues and resubmit.</p>
+                                </div>
+                                <div className='flex flex-col divide-y divide-gray-100'>
+                                    {rejectedProducts.map(p => (
+                                        <div key={p._id} className='flex items-center gap-4 px-5 py-3'>
+                                            <img src={p.image?.[0]} className='w-12 h-12 object-cover rounded-lg border border-gray-100' alt='' />
+                                            <div className='flex-1 min-w-0'>
+                                                <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
+                                                <p className='text-xs text-gray-400'>{p.category} · {p.subCategory}</p>
+                                                {p.rejectReason && <p className='text-xs text-red-500 mt-1'>Reason: {p.rejectReason}</p>}
+                                            </div>
+                                            <p className='font-semibold text-gray-500 text-sm'>₹{p.price}</p>
+                                            <span className='bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full'>❌ Rejected</span>
+                                        </div>
+                                    ))}
+                                    {rejectedProducts.length === 0 && (
+                                        <p className='text-center py-10 text-gray-400 text-sm'>No rejected products</p>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -566,6 +649,50 @@ return (
                                 </table>
                             </div>
                         </div>
+                    </div>
+                )}
+                {/* Returns Tab */}
+                {activeTab === 'returns' && (
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
+                        <h3 className='text-lg font-semibold text-gray-800 mb-1'>↩️ Returns & Exchanges</h3>
+                        <p className='text-xs text-gray-400 mb-6'>Customer return requests for your products.</p>
+                        <div className='text-center py-16 text-gray-400'>
+                            <p className='text-4xl mb-3'>↩️</p>
+                            <p className='text-sm font-medium text-gray-500'>No return requests yet</p>
+                            <p className='text-xs mt-1'>When customers request returns for your products, they will appear here.</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Account / Change Password Tab */}
+                {activeTab === 'account' && (
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-md'>
+                        <h3 className='text-lg font-semibold text-gray-800 mb-1'>🔒 Change Password</h3>
+                        <p className='text-xs text-gray-400 mb-5'>Enter your current password and choose a new one.</p>
+                        <form onSubmit={changePassword} className='space-y-4'>
+                            <div>
+                                <label className='text-xs font-medium text-gray-600 mb-1 block'>Current Password</label>
+                                <input required type='password' value={pwForm.currentPassword}
+                                    onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+                            <div>
+                                <label className='text-xs font-medium text-gray-600 mb-1 block'>New Password</label>
+                                <input required type='password' value={pwForm.newPassword}
+                                    onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+                            <div>
+                                <label className='text-xs font-medium text-gray-600 mb-1 block'>Confirm New Password</label>
+                                <input required type='password' value={pwForm.confirmPassword}
+                                    onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+                            <button type='submit' disabled={pwLoading}
+                                className='bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition font-medium disabled:opacity-50'>
+                                {pwLoading ? 'Updating...' : 'Update Password'}
+                            </button>
+                        </form>
                     </div>
                 )}
             </div>

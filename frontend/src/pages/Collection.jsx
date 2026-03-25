@@ -14,6 +14,18 @@ const Collection = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const { search, setSearch } = useContext(ShopContext)
 
+  // shuffle once on mount — stable for this visit, different next visit
+  const [shuffled, setShuffled] = useState([])
+  useEffect(() => {
+    if (products.length === 0) return
+    const arr = [...products]
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    setShuffled(arr)
+  }, [products.length]) // only re-shuffle when product count changes (new load)
+
   const itemsPerPage = 12
 
   const toggleFilter = (value, setter, state) => {
@@ -29,7 +41,7 @@ const Collection = () => {
   }
 
   const filterProducts = useMemo(() => {
-    let filtered = [...products]
+    let filtered = sortType === 'relevant' ? [...shuffled] : [...products]
 
     if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
     if (category.length) filtered = filtered.filter(p => category.includes(p.category))
@@ -41,7 +53,7 @@ const Collection = () => {
     else if (sortType === 'high-low') filtered.sort((a, b) => b.price - a.price)
 
     return filtered
-  }, [products, category, subCategory, sortType, search])
+  }, [shuffled, products, category, subCategory, sortType, search])
 
   // Pagination logic
   const totalPages = Math.ceil(filterProducts.length / itemsPerPage)

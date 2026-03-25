@@ -12,6 +12,21 @@ const getRole = (token) => {
     catch { return null; }
 };
 
+const getUserId = (token) => {
+    try { return token ? jwtDecode(token).id : null; }
+    catch { return null; }
+};
+
+const getUserName = (token) => {
+    try { return token ? jwtDecode(token).name : null; }
+    catch { return null; }
+};
+
+const wishlistKey = (token) => {
+    const id = getUserId(token);
+    return id ? `wishlist_${id}` : null;
+};
+
 const ShopContextProvider = (props) => {
 
     const currency = '₹';
@@ -21,10 +36,14 @@ const ShopContextProvider = (props) => {
     const [products, setProducts] = useState([]);
     const [token, setToken] = useState(localStorage.getItem('token') || '');
     const [role, setRole] = useState(getRole(localStorage.getItem('token')));
+    const [userName, setUserName] = useState(getUserName(localStorage.getItem('token')));
     const [cartItems, setCartItems] = useState({});
     const [wishlistItems, setWishlistItems] = useState(() => {
         try {
-            return JSON.parse(localStorage.getItem('wishlist')) || [];
+            const token = localStorage.getItem('token');
+            const key = wishlistKey(token);
+            if (!key) return [];
+            return JSON.parse(localStorage.getItem(key)) || [];
         } catch {
             return [];
         }
@@ -52,7 +71,8 @@ const ShopContextProvider = (props) => {
 
     // ── Cart ──────────────────────────────────────────────
     const addToCart = async (itemId, size) => {
-        if (!size) { toast.error('Please select a size'); return; }
+        if (!token) { toast.error('Please login to add items to cart'); navigate('/login'); return; }
+        if (!size) { toast.error('Please select a size'); return; } // size is pre-validated by caller
 
         let cart = structuredClone(cartItems);
         cart[itemId] = cart[itemId] || {};
@@ -105,10 +125,12 @@ const ShopContextProvider = (props) => {
     };
 
     const toggleWishlist = (itemId) => {
+        if (!token) { toast.error('Please login to add items to wishlist'); navigate('/login'); return; }
         setWishlistItems(prev => {
             const exists = prev.includes(itemId);
             const next = exists ? prev.filter(id => id !== itemId) : [...prev, itemId];
-            localStorage.setItem('wishlist', JSON.stringify(next));
+            const key = wishlistKey(token);
+            if (key) localStorage.setItem(key, JSON.stringify(next));
             return next;
         });
     };
@@ -123,10 +145,13 @@ const ShopContextProvider = (props) => {
 
     // ── Auth ──────────────────────────────────────────────
     const logout = () => {
+        if (!window.confirm('Are you sure you want to logout?')) return
         setToken('');
         setRole(null);
+        setUserName(null);
         localStorage.removeItem('token');
         setCartItems({});
+        setWishlistItems([]);
         navigate('/login');
     };
 
@@ -137,18 +162,30 @@ const ShopContextProvider = (props) => {
         if (token) {
             localStorage.setItem('token', token);
             setRole(getRole(token));
+            setUserName(getUserName(token));
             getUserCart(token);
+            // restore this user's wishlist
+            try {
+                const key = wishlistKey(token);
+                const saved = key ? JSON.parse(localStorage.getItem(key)) : null;
+                if (Array.isArray(saved)) setWishlistItems(saved);
+                else setWishlistItems([]);
+            } catch { setWishlistItems([]); }
         }
     }, [token]);
 
+    // persist wishlist keyed by user — only when token exists
     useEffect(() => {
-        localStorage.setItem('wishlist', JSON.stringify(wishlistItems));
-    }, [wishlistItems]);
+        if (!token) return;
+        const key = wishlistKey(token);
+        if (key) localStorage.setItem(key, JSON.stringify(wishlistItems));
+    }, [wishlistItems, token]);
 
     const value = {
         products, currency, delivery_fee, backendUrl,
         token, setToken,
         role, setRole,
+        userName,
         cartItems, setCartItems,
         wishlistItems, setWishlistItems,
         addToCart, updateQuantity,

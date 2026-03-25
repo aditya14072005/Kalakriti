@@ -19,7 +19,15 @@ const placeOrder = async (req, res) => {
     try {
         const userId = req.userId;
         const { items, amount, address } = req.body;
-        await orderModel.create({ userId, items, amount, address, paymentMethod: 'COD', payment: false, date: Date.now() });
+        // enrich items with vendorId from product records
+        const productModel = (await import('../models/productModel.js')).default;
+        const enriched = await Promise.all(items.map(async item => {
+            try {
+                const p = await productModel.findById(item._id).select('vendorId').lean();
+                return { ...item, vendorId: p?.vendorId || null };
+            } catch { return { ...item, vendorId: null }; }
+        }));
+        await orderModel.create({ userId, items: enriched, amount, address, paymentMethod: 'COD', payment: false, date: Date.now() });
         await clearCart(userId);
         res.json({ success: true, message: 'Order placed' });
     } catch (error) {
@@ -33,8 +41,14 @@ const placeOrderStripe = async (req, res) => {
         const userId = req.userId;
         const { items, amount, address } = req.body;
         const { origin } = req.headers;
-
-        const order = await orderModel.create({ userId, items, amount, address, paymentMethod: 'Stripe', payment: false, date: Date.now() });
+        const productModel = (await import('../models/productModel.js')).default;
+        const enriched = await Promise.all(items.map(async item => {
+            try {
+                const p = await productModel.findById(item._id).select('vendorId').lean();
+                return { ...item, vendorId: p?.vendorId || null };
+            } catch { return { ...item, vendorId: null }; }
+        }));
+        const order = await orderModel.create({ userId, items: enriched, amount, address, paymentMethod: 'Stripe', payment: false, date: Date.now() });
 
         const line_items = items.map(item => ({
             price_data: {
@@ -72,7 +86,14 @@ const placeOrderRazorpay = async (req, res) => {
     try {
         const userId = req.userId;
         const { items, amount, address } = req.body;
-        const order = await orderModel.create({ userId, items, amount, address, paymentMethod: 'Razorpay', payment: false, date: Date.now() });
+        const productModel = (await import('../models/productModel.js')).default;
+        const enriched = await Promise.all(items.map(async item => {
+            try {
+                const p = await productModel.findById(item._id).select('vendorId').lean();
+                return { ...item, vendorId: p?.vendorId || null };
+            } catch { return { ...item, vendorId: null }; }
+        }));
+        const order = await orderModel.create({ userId, items: enriched, amount, address, paymentMethod: 'Razorpay', payment: false, date: Date.now() });
 
         const options = { amount: amount * 100, currency: 'INR', receipt: order._id.toString() };
         const razorpayOrder = await razorpay.orders.create(options);
@@ -151,4 +172,44 @@ const updateStatus = async (req, res) => {
     }
 };
 
-export { placeOrder, placeOrderStripe, placeOrderRazorpay, verifyRazorpay, verifyStripe, userOrders, allOrders, updateStatus };
+// GET /api/order/vendor-orders  (vendor - only orders containing their products)
+const vendorOrders = async (req, res) => {
+    try {
+        const vendorId = req.userId.toString();
+        const orders = await orderModel.find({
+            'items.vendorId': vendorId
+        });
+        // filter items to only vendor's items per order
+        const filtered = orders.map(order => ({
+            ...order.toObject(),
+            items: order.items.filter(item => item.vendorId === vendorId)
+        }));
+        res.json({ success: true, orders: filtered });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/order/update-status  (vendor)
+const updateOrderStatus = async (req, res) => {
+    try {
+        const { orderId, status } = req.body;
+        await orderModel.findByIdAndUpdate(orderId, { status });
+        res.json({ success: true, message: 'Status updated' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/order/update-payment  (admin)
+const updatePayment = async (req, res) => {
+    try {
+        const { orderId, payment } = req.body;
+        await orderModel.findByIdAndUpdate(orderId, { payment });
+        res.json({ success: true, message: 'Payment updated' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { placeOrder, placeOrderStripe, placeOrderRazorpay, verifyRazorpay, verifyStripe, userOrders, allOrders, updateStatus, vendorOrders, updateOrderStatus, updatePayment };

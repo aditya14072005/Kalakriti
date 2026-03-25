@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { ShopContext } from '../context/ShopContext'
 import Title from '../components/Title'
 import CartTotal from '../components/CartTotal'
@@ -10,10 +10,35 @@ const PlaceOrder = () => {
 
     const { backendUrl, token, cartItems, products, delivery_fee, getCartAmount, navigate, setCartItems } = useContext(ShopContext)
     const [method, setMethod] = useState('cod')
+    const [savedAddresses, setSavedAddresses] = useState([])
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', street: '',
         city: '', state: '', zipcode: '', country: '', phone: ''
     })
+
+    useEffect(() => {
+        const fetchAddresses = async () => {
+            try {
+                const { data } = await axios.get(`${backendUrl}/api/user/profile`, { headers: { token } })
+                if (data.success) setSavedAddresses(data.user.addresses || [])
+            } catch {}
+        }
+        if (token) fetchAddresses()
+    }, [token])
+
+    const applySavedAddress = (addr) => {
+        setFormData({
+            firstName: addr.firstName || '',
+            lastName: addr.lastName || '',
+            email: formData.email,
+            street: addr.street || '',
+            city: addr.city || '',
+            state: addr.state || '',
+            zipcode: addr.zipcode || '',
+            country: addr.country || '',
+            phone: addr.phone || ''
+        })
+    }
 
     const onChangeHandler = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
@@ -77,6 +102,26 @@ const PlaceOrder = () => {
                 <div className='text-xl sm:text-2xl my-3'>
                     <Title text1={'DELIVERY'} text2={'INFORMATION'} />
                 </div>
+                {savedAddresses.length > 0 && (
+                    <div className='mb-2'>
+                        <p className='text-xs font-medium text-gray-500 mb-1'>Use a saved address:</p>
+                        <div className='flex flex-col gap-2'>
+                            {savedAddresses.map((addr, i) => (
+                                <button key={addr.id || i} type='button' onClick={() => applySavedAddress(addr)}
+                                    className='text-left border border-gray-200 rounded-lg px-3 py-2 hover:border-orange-400 hover:bg-orange-50 transition text-sm'>
+                                    <span className='font-medium text-gray-800'>{addr.firstName} {addr.lastName}</span>
+                                    {addr.label && <span className='ml-2 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full'>{addr.label}</span>}
+                                    <p className='text-xs text-gray-500 mt-0.5'>{addr.street}, {addr.city}, {addr.state} {addr.zipcode}</p>
+                                </button>
+                            ))}
+                        </div>
+                        <div className='flex items-center gap-2 my-3'>
+                            <div className='flex-1 h-px bg-gray-200' />
+                            <span className='text-xs text-gray-400'>or fill manually</span>
+                            <div className='flex-1 h-px bg-gray-200' />
+                        </div>
+                    </div>
+                )}
                 <div className='flex gap-3'>
                     <input required name='firstName' onChange={onChangeHandler} value={formData.firstName} placeholder='First name' className={inputClass} />
                     <input required name='lastName' onChange={onChangeHandler} value={formData.lastName} placeholder='Last name' className={inputClass} />

@@ -3,6 +3,7 @@ import { ShopContext } from '../context/ShopContext'
 import { assets } from '../assets/assets'
 import Title from '../components/Title'
 import CartTotal from '../components/CartTotal'
+import { Link } from 'react-router-dom'
 
 const Cart = () => {
 
@@ -20,6 +21,15 @@ const Cart = () => {
         }
         setCartData(items)
     }, [cartItems])
+
+    if (cartData.length === 0) return (
+        <div className='text-center py-20 border-t'>
+            <p className='text-4xl mb-4'>🛒</p>
+            <h2 className='text-2xl font-bold text-gray-700 mb-2'>Your cart is empty</h2>
+            <p className='text-gray-500 mb-6'>Add some items before checking out.</p>
+            <Link to='/collection' className='bg-orange-500 text-white px-6 py-2.5 rounded-lg hover:bg-orange-600 transition'>Browse Products</Link>
+        </div>
+    )
 
     return (
         <div className='border-t pt-14'>

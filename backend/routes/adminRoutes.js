@@ -1,5 +1,5 @@
 import express from 'express';
-import { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser } from '../controllers/adminController.js';
+import { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser, getVendorRequests, approveVendorRequest, rejectVendorRequest } from '../controllers/adminController.js';
 import { authAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -14,5 +14,8 @@ router.delete('/order/delete', authAdmin, deleteOrder);
 router.get('/products', authAdmin, getAllProducts);
 router.delete('/product/delete', authAdmin, deleteProduct);
 router.post('/create', authAdmin, createUser);
+router.get('/vendor-requests', authAdmin, getVendorRequests);
+router.post('/vendor-request/approve', authAdmin, approveVendorRequest);
+router.post('/vendor-request/reject', authAdmin, rejectVendorRequest);
 
 export default router;
