@@ -903,7 +903,6 @@ const Auth = () => {
                         placeholder="••••••••"
                         value={password} onChange={e=>setPassword(e.target.value)} required/>
                       <button type="button" id="kkShowPwLabel" className="kk-eye-btn"
-                        id="kkShowPwLabel"
                         onMouseDown={e=>e.preventDefault()}
                         onClick={()=>setShowLoginPw(v=>!v)}>
                         {showLoginPw
