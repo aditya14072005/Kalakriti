@@ -4,6 +4,12 @@ A full-stack e-commerce platform for Indian ethnic wear and handcrafted products
 
 🌐 **Live:** [kalakriti-rust.vercel.app](https://kalakriti-rust.vercel.app)
 
+## 🖼️ Preview
+
+![Kalakriti Home Page](./Kalakriti%20Home%20Page.png)
+
+https://github.com/aditya14072005/Kalakriti/assets/Kalakriti%20Demo.mp4
+
 ## ✨ Features
 
 - 🛍️ Product browsing with filters, search, and pagination
