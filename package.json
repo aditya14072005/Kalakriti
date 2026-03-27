@@ -1,6 +1,17 @@
 {
   "name": "kalakriti",
   "version": "1.0.0",
+  "description": "An artisan marketplace connecting skilled craftsmen with customers.",
+  "author": "Aditya Agarwal <tmaditya1@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aditya14072005/Kalakriti"
+  },
+  "bugs": {
+    "url": "https://github.com/aditya14072005/Kalakriti/issues"
+  },
+  "homepage": "https://kalakriti-rust.vercel.app",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
   },
