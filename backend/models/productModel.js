@@ -14,6 +14,7 @@ const productSchema = new mongoose.Schema({
     vendorId: { type: String, default: null },
     vendorName: { type: String, default: null },
     rejectReason: { type: String, default: null },
+    stock: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const productModel = mongoose.models.product || mongoose.model('product', productSchema);

@@ -8,6 +8,7 @@ import productRoutes from './routes/productRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import returnRoutes from './routes/returnRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -23,6 +24,7 @@ app.use('/api/product', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/order', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/return', returnRoutes);
 
 app.get('/', (req, res) => res.send('KALAKRITI API running'));
 

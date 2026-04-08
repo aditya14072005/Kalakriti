@@ -62,8 +62,10 @@ const Orders = () => {
     const [orders, setOrders] = useState([])
     const [expanded, setExpanded] = useState(null)
     const [activeTab, setActiveTab] = useState(location.state?.tab || 'orders')
-    const [returnForm, setReturnForm] = useState({ orderId: '', reason: '', details: '' })
+    const [returnForm, setReturnForm] = useState({ orderId: '', type: 'return', reason: '', details: '' })
     const [returnSubmitted, setReturnSubmitted] = useState(false)
+    const [myReturns, setMyReturns] = useState([])
+    const [activeReturnTab, setActiveReturnTab] = useState('submit')
 
     const loadOrders = async () => {
         try {
@@ -74,7 +76,14 @@ const Orders = () => {
         }
     }
 
-    useEffect(() => { if (token) loadOrders() }, [token])
+    const loadReturns = async () => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/return/my`, { headers: { token } })
+            if (data.success) setMyReturns(data.requests)
+        } catch {}
+    }
+
+    useEffect(() => { if (token) { loadOrders(); loadReturns() } }, [token])
 
     return (
         <div className='border-t pt-16'>
@@ -211,34 +220,58 @@ const Orders = () => {
 
             {/* Returns Tab */}
             {activeTab === 'returns' && (
-                <div className='max-w-lg'>
-                    {returnSubmitted ? (
-                        <div className='text-center py-12'>
-                            <p className='text-4xl mb-3'>✅</p>
-                            <h3 className='text-lg font-bold text-gray-800 mb-2'>Return Request Submitted!</h3>
-                            <p className='text-sm text-gray-500 mb-4'>Our team will review your request and contact you within 2-3 business days.</p>
-                            <button onClick={() => { setReturnSubmitted(false); setReturnForm({ orderId: '', reason: '', details: '' }) }}
-                                className='bg-orange-500 text-white px-6 py-2 rounded-lg text-sm hover:bg-orange-600 transition'>
-                                Submit Another
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            <p className='text-sm text-gray-500 mb-5'>Fill in the form below to request a return or exchange. We accept returns within 7 days of delivery.</p>
+                <div className='max-w-2xl'>
+                    {/* Sub tabs */}
+                    <div className='flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6'>
+                        {[{ id: 'submit', label: '📝 Submit Request' }, { id: 'track', label: `📦 My Requests (${myReturns.length})` }].map(t => (
+                            <button key={t.id} onClick={() => { setReturnSubmitted(false); setActiveReturnTab(t.id) }}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                                    activeReturnTab === t.id ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:text-gray-700'
+                                }`}>{t.label}</button>
+                        ))}
+                    </div>
+
+                    {activeReturnTab === 'submit' && (
+                        returnSubmitted ? (
+                            <div className='text-center py-12'>
+                                <p className='text-4xl mb-3'>✅</p>
+                                <h3 className='text-lg font-bold text-gray-800 mb-2'>Request Submitted!</h3>
+                                <p className='text-sm text-gray-500 mb-4'>Our team will review and contact you within 2-3 business days.</p>
+                                <button onClick={() => { setReturnSubmitted(false); setReturnForm({ orderId: '', type: 'return', reason: '', details: '' }); loadReturns() }}
+                                    className='bg-orange-500 text-white px-6 py-2 rounded-lg text-sm hover:bg-orange-600 transition'>
+                                    Submit Another
+                                </button>
+                            </div>
+                        ) : (
                             <div className='flex flex-col gap-4'>
+                                <p className='text-sm text-gray-500'>Fill in the form below. We accept returns/exchanges within 7 days of delivery.</p>
+                                <div>
+                                    <label className='text-xs font-medium text-gray-600 mb-1 block'>Request Type</label>
+                                    <div className='flex gap-3'>
+                                        {['return', 'exchange'].map(t => (
+                                            <button key={t} type='button'
+                                                onClick={() => setReturnForm(p => ({ ...p, type: t }))}
+                                                className={`flex-1 py-2 rounded-lg border text-sm font-medium transition capitalize ${
+                                                    returnForm.type === t ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-300 text-gray-600 hover:border-orange-300'
+                                                }`}>
+                                                {t === 'return' ? '↩️ Return' : '🔄 Exchange'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div>
                                     <label className='text-xs font-medium text-gray-600 mb-1 block'>Select Order</label>
                                     <select value={returnForm.orderId} onChange={e => setReturnForm(p => ({ ...p, orderId: e.target.value }))}
                                         className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'>
-                                        <option value=''>-- Select an order --</option>
+                                        <option value=''>-- Select a delivered order --</option>
                                         {orders.filter(o => o.status === 'Delivered').map(o => (
                                             <option key={o._id} value={o._id}>
-                                                {o.items?.[0]?.name}{o.items?.length > 1 ? ` +${o.items.length-1} more` : ''} — {new Date(o.date).toLocaleDateString()}
+                                                {o.items?.[0]?.name}{o.items?.length > 1 ? ` +${o.items.length - 1} more` : ''} — {new Date(o.date).toLocaleDateString()}
                                             </option>
                                         ))}
                                     </select>
                                     {orders.filter(o => o.status === 'Delivered').length === 0 && (
-                                        <p className='text-xs text-gray-400 mt-1'>Only delivered orders are eligible for returns.</p>
+                                        <p className='text-xs text-gray-400 mt-1'>Only delivered orders are eligible.</p>
                                     )}
                                 </div>
                                 <div>
@@ -257,20 +290,57 @@ const Orders = () => {
                                 <div>
                                     <label className='text-xs font-medium text-gray-600 mb-1 block'>Additional Details</label>
                                     <textarea rows={3} value={returnForm.details} onChange={e => setReturnForm(p => ({ ...p, details: e.target.value }))}
-                                        placeholder='Describe the issue in detail...'
+                                        placeholder='Describe the issue...'
                                         className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 resize-none' />
                                 </div>
                                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                         if (!returnForm.orderId || !returnForm.reason) { toast.error('Please select an order and reason'); return }
-                                        setReturnSubmitted(true)
-                                        toast.success('Return request submitted!')
+                                        try {
+                                            const { data } = await axios.post(`${backendUrl}/api/return/submit`,
+                                                { orderId: returnForm.orderId, type: returnForm.type, reason: returnForm.reason, details: returnForm.details },
+                                                { headers: { token } })
+                                            if (data.success) { setReturnSubmitted(true); loadReturns() }
+                                            else toast.error(data.message)
+                                        } catch (e) { toast.error(e.message) }
                                     }}
                                     className='bg-orange-500 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-orange-600 transition font-medium'>
-                                    Submit Return Request
+                                    Submit Request
                                 </button>
                             </div>
-                        </>
+                        )
+                    )}
+
+                    {activeReturnTab === 'track' && (
+                        <div className='flex flex-col gap-4'>
+                            {myReturns.length === 0 && <p className='text-center py-10 text-gray-400'>No return/exchange requests yet.</p>}
+                            {myReturns.map((r, i) => (
+                                <div key={i} className='border border-gray-200 rounded-xl p-4 shadow-sm'>
+                                    <div className='flex items-center justify-between mb-2'>
+                                        <div className='flex items-center gap-2'>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                r.type === 'return' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                            }`}>{r.type === 'return' ? '↩️ Return' : '🔄 Exchange'}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                r.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                                                r.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                                                r.status === 'Completed' ? 'bg-purple-100 text-purple-600' :
+                                                'bg-yellow-100 text-yellow-600'
+                                            }`}>{r.status}</span>
+                                        </div>
+                                        <p className='text-xs text-gray-400'>{new Date(r.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <p className='text-sm font-medium text-gray-700'>Reason: {r.reason}</p>
+                                    {r.details && <p className='text-xs text-gray-500 mt-1'>{r.details}</p>}
+                                    {r.adminNote && (
+                                        <div className='mt-2 bg-blue-50 rounded-lg px-3 py-2'>
+                                            <p className='text-xs text-blue-600'>📝 Admin note: {r.adminNote}</p>
+                                        </div>
+                                    )}
+                                    <p className='text-xs text-gray-400 mt-2'>Order ID: {r.orderId?.slice(-10)}</p>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             )}

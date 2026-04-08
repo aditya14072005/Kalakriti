@@ -16,6 +16,8 @@ const VendorDashboard = () => {
     const [analytics, setAnalytics] = useState({ totalRevenue: 0, totalOrders: 0, totalProducts: 0, monthlyGrowth: 0 })
     const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
     const [pwLoading, setPwLoading] = useState(false)
+    const [returnRequests, setReturnRequests] = useState([])
+    const [stockInputs, setStockInputs] = useState({})
 
     const [productForm, setProductForm] = useState({
         name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false
@@ -62,6 +64,11 @@ const VendorDashboard = () => {
         } catch (error) {
             console.error('Analytics fetch error:', error)
         }
+
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/return/vendor`, { headers: { token } })
+            if (data.success) setReturnRequests(data.requests)
+        } catch (error) { console.error('Returns fetch error:', error) }
     }
 
     const onProductSubmit = async (e) => {
@@ -598,68 +605,119 @@ return (
                         <div className='p-6 border-b border-gray-200'>
                             <h3 className='text-lg font-semibold text-gray-800'>Inventory Management</h3>
                         </div>
-                        <div className='p-6'>
-                            <div className='overflow-x-auto'>
-                                <table className='w-full text-sm'>
-                                    <thead className='bg-gray-50'>
-                                        <tr>
-                                            <th className='px-4 py-3 text-left font-medium text-gray-700'>Product</th>
-                                            <th className='px-4 py-3 text-left font-medium text-gray-700'>SKU</th>
-                                            <th className='px-4 py-3 text-left font-medium text-gray-700'>Stock</th>
-                                            <th className='px-4 py-3 text-left font-medium text-gray-700'>Status</th>
-                                            <th className='px-4 py-3 text-left font-medium text-gray-700'>Actions</th>
+                        <div className='p-6 overflow-x-auto'>
+                            <table className='w-full text-sm'>
+                                <thead className='bg-gray-50'>
+                                    <tr>
+                                        <th className='px-4 py-3 text-left font-medium text-gray-700'>Product</th>
+                                        <th className='px-4 py-3 text-left font-medium text-gray-700'>Current Stock</th>
+                                        <th className='px-4 py-3 text-left font-medium text-gray-700'>Status</th>
+                                        <th className='px-4 py-3 text-left font-medium text-gray-700'>Update Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-200'>
+                                    {products.map(product => (
+                                        <tr key={product._id} className='hover:bg-gray-50'>
+                                            <td className='px-4 py-3'>
+                                                <div className='flex items-center space-x-3'>
+                                                    <img src={product.image?.[0]} className='w-10 h-10 object-cover rounded' alt='' />
+                                                    <span className='font-medium text-gray-800 text-sm'>{product.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className='px-4 py-3'>
+                                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                                    (product.stock || 0) > 10 ? 'bg-green-100 text-green-800' :
+                                                    (product.stock || 0) > 0 ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }`}>{product.stock || 0} units</span>
+                                            </td>
+                                            <td className='px-4 py-3'>
+                                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                                    (product.stock || 0) > 10 ? 'bg-green-100 text-green-800' :
+                                                    (product.stock || 0) > 0 ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {(product.stock || 0) > 10 ? 'In Stock' : (product.stock || 0) > 0 ? 'Low Stock' : 'Out of Stock'}
+                                                </span>
+                                            </td>
+                                            <td className='px-4 py-3'>
+                                                <div className='flex items-center gap-2'>
+                                                    <input type='number' min='0'
+                                                        placeholder={product.stock || 0}
+                                                        value={stockInputs[product._id] ?? ''}
+                                                        onChange={e => setStockInputs(p => ({ ...p, [product._id]: e.target.value }))}
+                                                        className='w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400' />
+                                                    <button onClick={async () => {
+                                                        const val = stockInputs[product._id]
+                                                        if (val === '' || val === undefined) return
+                                                        const { data } = await axios.post(`${backendUrl}/api/return/stock`,
+                                                            { productId: product._id, stock: val }, { headers: { token } })
+                                                        if (data.success) { toast.success('Stock updated'); setStockInputs(p => ({ ...p, [product._id]: '' })); fetchDashboardData() }
+                                                        else toast.error(data.message)
+                                                    }} className='bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition'>Save</button>
+                                                </div>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody className='divide-y divide-gray-200'>
-                                        {products.map(product => (
-                                            <tr key={product._id} className='hover:bg-gray-50'>
-                                                <td className='px-4 py-3'>
-                                                    <div className='flex items-center space-x-3'>
-                                                        <img src={product.image?.[0]} className='w-10 h-10 object-cover rounded' alt="" />
-                                                        <span className='font-medium text-gray-800'>{product.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className='px-4 py-3 text-gray-600'>{product.sku || 'N/A'}</td>
-                                                <td className='px-4 py-3'>
-                                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                                        (product.stock || 0) > 10 ? 'bg-green-100 text-green-800' :
-                                                        (product.stock || 0) > 0 ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {product.stock || 0} units
-                                                    </span>
-                                                </td>
-                                                <td className='px-4 py-3'>
-                                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                                        (product.stock || 0) > 10 ? 'bg-green-100 text-green-800' :
-                                                        (product.stock || 0) > 0 ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {(product.stock || 0) > 10 ? 'In Stock' : (product.stock || 0) > 0 ? 'Low Stock' : 'Out of Stock'}
-                                                    </span>
-                                                </td>
-                                                <td className='px-4 py-3'>
-                                                    <button className='text-blue-600 hover:text-blue-800 text-sm font-medium'>
-                                                        Update Stock
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                    {products.length === 0 && (
+                                        <tr><td colSpan={4} className='text-center py-10 text-gray-400'>No products yet</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
+
                 {/* Returns Tab */}
                 {activeTab === 'returns' && (
-                    <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
-                        <h3 className='text-lg font-semibold text-gray-800 mb-1'>↩️ Returns & Exchanges</h3>
-                        <p className='text-xs text-gray-400 mb-6'>Customer return requests for your products.</p>
-                        <div className='text-center py-16 text-gray-400'>
-                            <p className='text-4xl mb-3'>↩️</p>
-                            <p className='text-sm font-medium text-gray-500'>No return requests yet</p>
-                            <p className='text-xs mt-1'>When customers request returns for your products, they will appear here.</p>
+                    <div className='bg-white rounded-xl shadow-sm border border-gray-200'>
+                        <div className='p-6 border-b border-gray-200'>
+                            <h3 className='text-lg font-semibold text-gray-800'>↩️ Returns & Exchanges ({returnRequests.length})</h3>
+                        </div>
+                        <div className='flex flex-col divide-y divide-gray-100'>
+                            {returnRequests.map((r, i) => (
+                                <div key={i} className='px-6 py-4'>
+                                    <div className='flex items-center justify-between mb-2'>
+                                        <div className='flex items-center gap-2'>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                r.type === 'return' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                            }`}>{r.type === 'return' ? '↩️ Return' : '🔄 Exchange'}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                r.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                                                r.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                                                r.status === 'Completed' ? 'bg-purple-100 text-purple-600' :
+                                                'bg-yellow-100 text-yellow-600'
+                                            }`}>{r.status}</span>
+                                        </div>
+                                        <p className='text-xs text-gray-400'>{new Date(r.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <p className='text-sm text-gray-700 mb-1'>Reason: {r.reason}</p>
+                                    {r.details && <p className='text-xs text-gray-500 mb-2'>{r.details}</p>}
+                                    <p className='text-xs text-gray-400 mb-3'>Order: {r.orderId?.slice(-10)}</p>
+                                    <div className='flex items-center gap-2'>
+                                        <select
+                                            value={r.status}
+                                            onChange={async (e) => {
+                                                const { data } = await axios.post(`${backendUrl}/api/return/update`,
+                                                    { requestId: r._id, status: e.target.value }, { headers: { token } })
+                                                if (data.success) { toast.success('Status updated'); fetchDashboardData() }
+                                                else toast.error(data.message)
+                                            }}
+                                            className='text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none'>
+                                            <option>Pending</option>
+                                            <option>Approved</option>
+                                            <option>Rejected</option>
+                                            <option>Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ))}
+                            {returnRequests.length === 0 && (
+                                <div className='text-center py-16 text-gray-400'>
+                                    <p className='text-4xl mb-3'>↩️</p>
+                                    <p className='text-sm'>No return requests yet</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

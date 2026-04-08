@@ -23,6 +23,7 @@ const AdminDashboard = () => {
     const [expandedOrder, setExpandedOrder] = useState(null)
     const [productModal, setProductModal] = useState(null) // product object
     const [vendorRequests, setVendorRequests] = useState([])
+    const [returnRequests, setReturnRequests] = useState([])
 
     const h = { headers: { token } }
 
@@ -47,6 +48,8 @@ const AdminDashboard = () => {
             if (o.data.success) setOrders(o.data.orders)
             if (pending.data.success) setPendingProducts(pending.data.products)
             if (vr.data.success) setVendorRequests(vr.data.requests)
+            const rr = await axios.get(`${backendUrl}/api/return/all`, h)
+            if (rr.data.success) setReturnRequests(rr.data.requests)
         } catch (e) { toast.error(e.message) }
     }
 
@@ -701,13 +704,60 @@ const AdminDashboard = () => {
             )}
             {/* Returns */}
             {tab === 'returns' && (
-                <div className='bg-white rounded-2xl border border-gray-100 shadow p-6'>
-                    <p className='font-semibold text-gray-700 mb-1'>↩️ Returns & Exchanges</p>
-                    <p className='text-xs text-gray-400 mb-5'>Customer return requests submitted through the platform.</p>
-                    <div className='text-center py-16 text-gray-400'>
-                        <p className='text-4xl mb-3'>↩️</p>
-                        <p className='text-sm font-medium text-gray-500'>No return requests yet</p>
-                        <p className='text-xs mt-1'>When customers submit return requests, they will appear here.</p>
+                <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                    <div className='p-4 border-b border-gray-100'>
+                        <p className='font-semibold text-gray-700'>↩️ Returns & Exchanges ({returnRequests.length})</p>
+                    </div>
+                    <div className='flex flex-col divide-y divide-gray-50'>
+                        {returnRequests.map((r, i) => (
+                            <div key={i} className='px-5 py-4 hover:bg-orange-50/30 transition'>
+                                <div className='flex items-center justify-between mb-2'>
+                                    <div className='flex items-center gap-2'>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            r.type === 'return' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                        }`}>{r.type === 'return' ? '↩️ Return' : '🔄 Exchange'}</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            r.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                                            r.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                                            r.status === 'Completed' ? 'bg-purple-100 text-purple-600' :
+                                            'bg-yellow-100 text-yellow-600'
+                                        }`}>{r.status}</span>
+                                    </div>
+                                    <p className='text-xs text-gray-400'>{new Date(r.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <p className='text-sm text-gray-700 mb-1'>Reason: {r.reason}</p>
+                                {r.details && <p className='text-xs text-gray-500 mb-1'>{r.details}</p>}
+                                <p className='text-xs text-gray-400 mb-3'>Order: {r.orderId?.slice(-10)} · User: {r.userId?.slice(-8)}</p>
+                                <div className='flex items-center gap-2'>
+                                    <select value={r.status}
+                                        onChange={async (e) => {
+                                            const { data } = await axios.post(`${backendUrl}/api/return/update`,
+                                                { requestId: r._id, status: e.target.value }, h)
+                                            if (data.success) { toast.success('Status updated'); fetchAll() }
+                                            else toast.error(data.message)
+                                        }}
+                                        className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
+                                        <option>Pending</option>
+                                        <option>Approved</option>
+                                        <option>Rejected</option>
+                                        <option>Completed</option>
+                                    </select>
+                                    <input placeholder='Add note...' defaultValue={r.adminNote}
+                                        onBlur={async (e) => {
+                                            if (e.target.value === r.adminNote) return
+                                            await axios.post(`${backendUrl}/api/return/update`,
+                                                { requestId: r._id, status: r.status, adminNote: e.target.value }, h)
+                                        }}
+                                        className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400 flex-1' />
+                                </div>
+                            </div>
+                        ))}
+                        {returnRequests.length === 0 && (
+                            <div className='text-center py-16 text-gray-400'>
+                                <p className='text-4xl mb-3'>↩️</p>
+                                <p className='text-sm font-medium text-gray-500'>No return requests yet</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
