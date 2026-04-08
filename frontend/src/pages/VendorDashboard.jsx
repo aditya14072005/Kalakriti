@@ -57,7 +57,7 @@ const VendorDashboard = () => {
         }
 
         try {
-            const { data } = await axios.get(`${backendUrl}/api/analytics/vendor`, { headers: { token } })
+            const { data } = await axios.get(`${backendUrl}/api/order/vendor-analytics`, { headers: { token } })
             if (data.success) setAnalytics(data.analytics)
         } catch (error) {
             console.error('Analytics fetch error:', error)

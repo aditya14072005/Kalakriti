@@ -172,6 +172,33 @@ const updateStatus = async (req, res) => {
     }
 };
 
+// GET /api/analytics/vendor
+const getVendorAnalytics = async (req, res) => {
+    try {
+        const vendorId = req.userId.toString();
+        const orders = await orderModel.find({ 'items.vendorId': vendorId });
+        const productCount = await (await import('../models/productModel.js')).default.countDocuments({ vendorId, status: 'approved' });
+
+        const totalOrders = orders.length;
+        const totalRevenue = orders
+            .filter(o => o.payment)
+            .reduce((sum, o) => {
+                const vendorItems = o.items.filter(i => i.vendorId === vendorId);
+                return sum + vendorItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+            }, 0);
+
+        // simple month-over-month growth
+        const now = Date.now();
+        const thisMonth = orders.filter(o => now - o.date < 30 * 24 * 60 * 60 * 1000).length;
+        const lastMonth = orders.filter(o => now - o.date >= 30 * 24 * 60 * 60 * 1000 && now - o.date < 60 * 24 * 60 * 60 * 1000).length;
+        const monthlyGrowth = lastMonth === 0 ? (thisMonth > 0 ? 100 : 0) : Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+
+        res.json({ success: true, analytics: { totalRevenue, totalOrders, totalProducts: productCount, monthlyGrowth } });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // GET /api/order/vendor-orders  (vendor - only orders containing their products)
 const vendorOrders = async (req, res) => {
     try {
@@ -212,4 +239,4 @@ const updatePayment = async (req, res) => {
     }
 };
 
-export { placeOrder, placeOrderStripe, placeOrderRazorpay, verifyRazorpay, verifyStripe, userOrders, allOrders, updateStatus, vendorOrders, updateOrderStatus, updatePayment };
+export { placeOrder, placeOrderStripe, placeOrderRazorpay, verifyRazorpay, verifyStripe, userOrders, allOrders, updateStatus, vendorOrders, updateOrderStatus, updatePayment, getVendorAnalytics };
