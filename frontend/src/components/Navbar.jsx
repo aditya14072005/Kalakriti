@@ -138,7 +138,7 @@ const NavBar = () => {
           >
             {[
               ...(role === 'vendor' ? [["/vendor-dashboard", "VENDOR DASHBOARD"]] : role === 'admin' ? [["/admin", "DASHBOARD"]] : []),
-              ["/", "HOME"], ["/collection", "COLLECTION"],
+              ["/", "HOME"], ["/collection", "COLLECTION"], ["/daily-deals", "DAILY DEALS"],
               ...(!token ? [["/vendor", "BECOME A VENDOR"]] : []),
               ["/contact", "CONTACT"], ["/about", "ABOUT"]
             ].map(([path, label], i) => {
@@ -590,7 +590,7 @@ const NavBar = () => {
             <div className="flex flex-col py-3">
               {[
                 ...(role === 'vendor' ? [["/vendor-dashboard", "Vendor Dashboard"]] : role === 'admin' ? [["/admin", "Vendor Requests"]] : []),
-                ["/", "Home"], ["/collection", "Collection"],
+                ["/", "Home"], ["/collection", "Collection"], ["/daily-deals", "Daily Deals"],
                 ...(!token ? [["/vendor", "Become a Vendor"]] : []),
                 ["/contact", "Contact"], ["/about", "About"]
               ].map(([path, label], i) => (
