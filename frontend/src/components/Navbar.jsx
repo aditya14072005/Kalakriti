@@ -20,51 +20,60 @@ const NavBar = () => {
 
   const { getCartCount, getWishlistCount, token, logout, navigate, search, setSearch, showSearch, setShowSearch, role, userName } = useContext(ShopContext);
 
-  // Voice recognition
+  const recognitionRef = useRef(null);
+  const listeningRef = useRef(false);
+
   const startVoiceSearch = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Voice search is not supported in this browser. Please use Chrome, Edge, or Safari.');
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setSearch(transcript);
-      navigate('/collection');
+    if (listeningRef.current) {
+      listeningRef.current = false;
+      recognitionRef.current?.stop();
       setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-      if (event.error === 'not-allowed') {
-        alert('Microphone access denied. Please allow microphone access and try again.');
-      } else if (event.error === 'no-speech') {
-        alert('No speech detected. Please try again.');
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    try {
-      recognition.start();
-    } catch (error) {
-      console.error('Error starting speech recognition:', error);
-      setIsListening(false);
+      return;
     }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const start = () => {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognitionRef.current = recognition;
+
+      recognition.onstart = () => { listeningRef.current = true; setIsListening(true); };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(r => r[0].transcript).join(' ');
+        setSearch(transcript);
+        navigate('/collection');
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'not-allowed') {
+          listeningRef.current = false;
+          setIsListening(false);
+          alert('Microphone access denied.');
+        }
+      };
+
+      recognition.onend = () => {
+        if (listeningRef.current) {
+          try { start(); } catch { listeningRef.current = false; setIsListening(false); }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      try { recognition.start(); } catch { listeningRef.current = false; setIsListening(false); }
+    };
+
+    start();
   };
 
   useEffect(() => {
@@ -173,13 +182,12 @@ const NavBar = () => {
           <div className={`flex items-center transition-all duration-500 ${scrolled ? "gap-2" : "gap-3"}`}>
 
             {/* Search */}
-            <div ref={searchRef} className="flex items-center"
-              onMouseEnter={() => { setSearchHovered(true); setHoveredZone('search'); }}
-              onMouseLeave={() => { setSearchHovered(false); setHoveredZone(null); }}
-              style={reelStyle('search')}>
-              <div className={`flex items-center overflow-hidden transition-all duration-500 ease-in-out
-                ${showSearch ? "w-72 bg-white border border-orange-300 shadow-lg shadow-orange-100" : "bg-transparent border border-transparent"}
-                ${scrolled ? "rounded-full px-1 py-0.5" : "rounded-full px-1 py-0.5"}`}>
+            <div ref={searchRef} className="flex items-center gap-1"
+              onMouseEnter={() => setSearchHovered(true)}
+              onMouseLeave={() => setSearchHovered(false)}>
+              <div className={`flex items-center transition-all duration-500 ease-in-out
+                ${showSearch ? "w-56 bg-white border border-orange-300 shadow-lg shadow-orange-100" : "w-auto bg-transparent border border-transparent"}
+                rounded-full px-1 py-0.5`}>
                 <button
                   onClick={handleSearchToggle}
                   style={{ transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
@@ -290,59 +298,36 @@ const NavBar = () => {
                     ${scrolled ? "text-xs" : "text-sm"}
                     ${showSearch ? "w-full ml-2 opacity-100" : "w-0 opacity-0"}`}
                 />
-                {showSearch && (
-                  <div className="flex items-center gap-1 ml-2">
-                    <button
-                      onClick={startVoiceSearch}
-                      disabled={isListening}
-                      className={`flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-200
-                        ${scrolled ? "w-4 h-4" : "w-5 h-5"}
-                        ${isListening
-                          ? 'bg-red-500 hover:bg-red-600'
-                          : 'bg-orange-100 hover:bg-orange-200'
-                        }`}
-                      title="Voice search"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        className={`${scrolled ? "w-3 h-3" : "w-4 h-4"}`}
-                      >
-                        <path
-                          d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
-                          stroke={isListening ? '#ffffff' : '#f97316'}
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M19 10V12C19 16.4183 15.4183 20 11 20C6.58172 20 3 16.4183 3 12V10"
-                          stroke={isListening ? '#ffffff' : '#f97316'}
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M12 20V23"
-                          stroke={isListening ? '#ffffff' : '#f97316'}
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        {isListening && (
-                          <circle cx="19" cy="5" r="1.5" fill="#ef4444" />
-                        )}
-                      </svg>
-                    </button>
-                    {search && (
-                      <button onClick={() => setSearch('')}
-                        className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 hover:bg-orange-200 transition">
-                        <img src={assets.cross_icon} className="w-2" alt="clear" />
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
+              {showSearch && (
+                <div className="flex items-center gap-1 ml-1">
+                  <button
+                    onClick={startVoiceSearch}
+                    className={`flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-300 w-7 h-7 relative
+                      ${isListening
+                        ? 'bg-red-500 text-white shadow-lg shadow-red-300 scale-110'
+                        : 'bg-orange-100 hover:bg-orange-200'}`}
+                    title={isListening ? 'Listening...' : 'Voice search'}
+                  >
+                    {isListening && (
+                      <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-60" />
+                    )}
+                    <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 relative z-10">
+                      <path d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
+                        stroke={isListening ? '#ffffff' : '#f97316'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M19 10V12C19 16.4183 15.4183 20 11 20C6.58172 20 3 16.4183 3 12V10"
+                        stroke={isListening ? '#ffffff' : '#f97316'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 20V23" stroke={isListening ? '#ffffff' : '#f97316'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {search && (
+                    <button onClick={() => setSearch('')}
+                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-orange-200 transition">
+                      <img src={assets.cross_icon} className="w-2.5" alt="clear" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Wishlist */}

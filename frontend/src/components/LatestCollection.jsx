@@ -14,30 +14,25 @@ const LatestCollection = () => {
 
   return (
 
-    <section className="relative my-16 py-14 
+    <section className="relative my-6 py-6 
     bg-linear-to-b from-[#fffaf4] via-[#fff1e6] to-[#fde68a] 
     rounded-2xl shadow-sm">
 
       {/* soft background glow */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 
       w-100 h-100 bg-orange-200 opacity-20 blur-3xl rounded-full"></div>
 
       {/* Title */}
-      <div className="relative text-center py-6 text-3xl">
+      <div className="relative text-center py-3 text-3xl">
 
         <Title text1={"LATEST"} text2={"COLLECTION"} />
 
         {/* decorative divider */}
-        <div className="flex justify-center items-center gap-4 mt-4 mb-6">
-          <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-blue-500 to-transparent"></div>
-          <span className="text-blue-500 text-xl">✦</span>
-          <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-blue-500 to-transparent"></div>
+        <div className="flex justify-center items-center gap-3 mt-2 mb-3">
+          <div className="w-12 h-0.5 bg-linear-to-r from-transparent via-blue-500 to-transparent"></div>
+          <span className="text-blue-500 text-sm">✦</span>
+          <div className="w-12 h-0.5 bg-linear-to-r from-transparent via-blue-500 to-transparent"></div>
         </div>
-
-        <p className="w-3/4 m-auto text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed">
-          Explore our latest business products from verified suppliers across India.
-          Quality materials, competitive pricing, and reliable delivery for your business needs.
-        </p>
 
       </div>
 

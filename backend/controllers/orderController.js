@@ -23,6 +23,7 @@ const placeOrder = async (req, res) => {
         const productModel = (await import('../models/productModel.js')).default;
         const enriched = await Promise.all(items.map(async item => {
             try {
+                if (!/^[a-f\d]{24}$/i.test(item._id)) return { ...item, vendorId: null };
                 const p = await productModel.findById(item._id).select('vendorId').lean();
                 return { ...item, vendorId: p?.vendorId || null };
             } catch { return { ...item, vendorId: null }; }
@@ -44,6 +45,7 @@ const placeOrderStripe = async (req, res) => {
         const productModel = (await import('../models/productModel.js')).default;
         const enriched = await Promise.all(items.map(async item => {
             try {
+                if (!/^[a-f\d]{24}$/i.test(item._id)) return { ...item, vendorId: null };
                 const p = await productModel.findById(item._id).select('vendorId').lean();
                 return { ...item, vendorId: p?.vendorId || null };
             } catch { return { ...item, vendorId: null }; }
@@ -89,6 +91,7 @@ const placeOrderRazorpay = async (req, res) => {
         const productModel = (await import('../models/productModel.js')).default;
         const enriched = await Promise.all(items.map(async item => {
             try {
+                if (!/^[a-f\d]{24}$/i.test(item._id)) return { ...item, vendorId: null };
                 const p = await productModel.findById(item._id).select('vendorId').lean();
                 return { ...item, vendorId: p?.vendorId || null };
             } catch { return { ...item, vendorId: null }; }

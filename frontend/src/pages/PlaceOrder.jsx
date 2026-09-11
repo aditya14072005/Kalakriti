@@ -11,6 +11,7 @@ const PlaceOrder = () => {
     const { backendUrl, token, cartItems, products, delivery_fee, getCartAmount, navigate, setCartItems } = useContext(ShopContext)
     const [method, setMethod] = useState('cod')
     const [savedAddresses, setSavedAddresses] = useState([])
+    const [userEmail, setUserEmail] = useState('')
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', street: '',
         city: '', state: '', zipcode: '', country: '', phone: ''
@@ -20,7 +21,7 @@ const PlaceOrder = () => {
         const fetchAddresses = async () => {
             try {
                 const { data } = await axios.get(`${backendUrl}/api/user/profile`, { headers: { token } })
-                if (data.success) setSavedAddresses(data.user.addresses || [])
+                if (data.success) { setSavedAddresses(data.user.addresses || []); setUserEmail(data.user.email || '') }
             } catch {}
         }
         if (token) fetchAddresses()
@@ -30,7 +31,7 @@ const PlaceOrder = () => {
         setFormData({
             firstName: addr.firstName || '',
             lastName: addr.lastName || '',
-            email: formData.email,
+            email: addr.email || userEmail || formData.email,
             street: addr.street || '',
             city: addr.city || '',
             state: addr.state || '',
@@ -127,7 +128,7 @@ const PlaceOrder = () => {
                     <input required name='lastName' onChange={onChangeHandler} value={formData.lastName} placeholder='Last name' className={inputClass} />
                 </div>
                 <input required name='email' onChange={onChangeHandler} value={formData.email} type='email' placeholder='Email address' className={inputClass} />
-                <input required name='street' onChange={onChangeHandler} value={formData.street} placeholder='Street' className={inputClass} />
+                <input required name='street' onChange={onChangeHandler} value={formData.street} placeholder='Address' className={inputClass} />
                 <div className='flex gap-3'>
                     <input required name='city' onChange={onChangeHandler} value={formData.city} placeholder='City' className={inputClass} />
                     <input required name='state' onChange={onChangeHandler} value={formData.state} placeholder='State' className={inputClass} />

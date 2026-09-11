@@ -2,42 +2,40 @@ import React, { useContext, useEffect, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from "./Title";
 import ProductItem from "./ProductItem";
+import axios from "axios";
 
 const BestSeller = () => {
 
-  const { products } = useContext(ShopContext);
+  const { backendUrl } = useContext(ShopContext);
   const [bestSeller, setBestSeller] = useState([]);
 
   useEffect(() => {
-    const bestProducts = products.filter((item) => item.bestseller);
-    setBestSeller(bestProducts.slice(0, 5));
-  }, [products]);
+    axios.get(`${backendUrl}/api/bestsellers`)
+      .then(res => res.data.success && setBestSeller(res.data.products))
+      .catch(() => {});
+  }, [backendUrl]);
 
   return (
 
-    <section className="relative my-16 py-14 
+    <section className="relative my-6 py-6 
     bg-linear-to-b from-[#fff7ed] via-[#fff1e6] to-[#fde68a] 
     rounded-2xl shadow-sm">
 
       {/* glow background */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 
       w-87.5 h-87.5 bg-orange-200 opacity-20 blur-3xl rounded-full"></div>
 
       {/* Title Section */}
-      <div className="relative text-center py-6 text-3xl">
+      <div className="relative text-center py-3 text-3xl">
 
         <Title text1={"BEST"} text2={"SELLERS"} />
 
         {/* decorative divider */}
-        <div className="flex justify-center items-center gap-4 mt-4 mb-6">
-          <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-orange-500 to-transparent"></div>
-          <span className="text-orange-500 text-xl">✦</span>
-          <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-orange-500 to-transparent"></div>
+        <div className="flex justify-center items-center gap-3 mt-2 mb-3">
+          <div className="w-12 h-0.5 bg-linear-to-r from-transparent via-orange-500 to-transparent"></div>
+          <span className="text-orange-500 text-sm">✦</span>
+          <div className="w-12 h-0.5 bg-linear-to-r from-transparent via-orange-500 to-transparent"></div>
         </div>
-
-        <p className="w-3/4 m-auto text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed">
-          Discover our most loved products crafted with style and tradition.
-        </p>
 
       </div>
 

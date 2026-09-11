@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 
 const Wishlist = () => {
-    const { getWishlistProducts, toggleWishlist, addToCart, currency } = useContext(ShopContext)
+    const { getWishlistProducts, toggleWishlist, addToCart, currency, addToRecentlyViewed } = useContext(ShopContext)
     const wishlistProducts = getWishlistProducts()
 
     if (!wishlistProducts.length) {
@@ -23,14 +23,14 @@ const Wishlist = () => {
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                 {wishlistProducts.map((product) => (
                     <div key={product._id} className='border p-4 rounded-xl shadow-sm'>
-                        <Link to={`/product/${product._id}`}>
+                        <Link to={`/product/${product._id}`} onClick={() => addToRecentlyViewed(product._id)}>
                             <img src={product.image[0]} className='w-full h-52 object-cover rounded-lg mb-4' alt={product.name} />
                         </Link>
                         <p className='font-medium'>{product.name}</p>
                         <p className='text-orange-500 font-semibold'>{currency}{product.price}</p>
                         <div className='mt-3 flex gap-2'>
                             <button
-                                onClick={() => { addToCart(product._id, product.sizes[0]); toast.success('Added to cart!') }}
+                                onClick={() => { addToCart(product._id, product.sizes?.[0] || 'one-size'); toast.success('Added to cart!') }}
                                 className='flex-1 bg-black text-white rounded-lg py-2 text-sm hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl'>
                                 Add to Cart
                             </button>

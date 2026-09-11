@@ -2,7 +2,6 @@ import { createContext, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { products as localProducts } from "../assets/assets";
 import { jwtDecode } from "jwt-decode";
 
 export const ShopContext = createContext();
@@ -50,22 +49,18 @@ const ShopContextProvider = (props) => {
     });
     const [search, setSearch] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+    const [recentlyViewed, setRecentlyViewed] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('recentlyViewed')) || []; } catch { return []; }
+    });
     const navigate = useNavigate();
 
     // ── Products ──────────────────────────────────────────
     const fetchProducts = async () => {
         try {
             const { data } = await axios.get(`${backendUrl}/api/product/list`);
-            if (data.success && data.products.length > 0) {
-                // merge DB products with local — DB products appear first
-                const dbIds = new Set(data.products.map(p => p._id));
-                const merged = [...data.products, ...localProducts.filter(p => !dbIds.has(p._id))];
-                setProducts(merged);
-            } else {
-                setProducts(localProducts);
-            }
+            if (data.success) setProducts(data.products);
         } catch (error) {
-            setProducts(localProducts);
+            toast.error('Failed to load products');
         }
     };
 
@@ -143,6 +138,21 @@ const ShopContextProvider = (props) => {
         return products.filter(p => wishlistItems.includes(p._id));
     };
 
+    const trackBehavior = async (payload) => {
+        if (!token) return;
+        try {
+            await axios.post(`${backendUrl}/api/behavior`, payload, { headers: { token } });
+        } catch {}
+    };
+
+    const addToRecentlyViewed = (productId) => {
+        setRecentlyViewed(prev => {
+            const next = [productId, ...prev.filter(id => id !== productId)].slice(0, 8);
+            localStorage.setItem('recentlyViewed', JSON.stringify(next));
+            return next;
+        });
+    };
+
     // ── Auth ──────────────────────────────────────────────
     const logout = () => {
         if (!window.confirm('Are you sure you want to logout?')) return
@@ -154,6 +164,13 @@ const ShopContextProvider = (props) => {
         setWishlistItems([]);
         navigate('/login');
     };
+
+    // track search queries
+    useEffect(() => {
+        if (!search.trim() || !token) return;
+        const t = setTimeout(() => trackBehavior({ type: 'search', value: search.trim() }), 1000);
+        return () => clearTimeout(t);
+    }, [search, token]);
 
     // ── Effects ───────────────────────────────────────────
     useEffect(() => { fetchProducts(); }, []);
@@ -182,7 +199,7 @@ const ShopContextProvider = (props) => {
     }, [wishlistItems, token]);
 
     const value = {
-        products, currency, delivery_fee, backendUrl,
+        products, fetchProducts, currency, delivery_fee, backendUrl,
         token, setToken,
         role, setRole,
         userName,
@@ -194,6 +211,7 @@ const ShopContextProvider = (props) => {
         navigate, logout,
         search, setSearch,
         showSearch, setShowSearch,
+        recentlyViewed, addToRecentlyViewed, trackBehavior,
     };
 
     return (

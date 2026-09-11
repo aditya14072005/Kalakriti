@@ -175,7 +175,7 @@ const Profile = () => {
                                 <input placeholder='First name *' value={newAddr.firstName} onChange={e => setNewAddr(p => ({ ...p, firstName: e.target.value }))} className={inputCls} />
                                 <input placeholder='Last name *' value={newAddr.lastName} onChange={e => setNewAddr(p => ({ ...p, lastName: e.target.value }))} className={inputCls} />
                             </div>
-                            <input placeholder='Street *' value={newAddr.street} onChange={e => setNewAddr(p => ({ ...p, street: e.target.value }))} className={inputCls} />
+                            <input placeholder='Address *' value={newAddr.street} onChange={e => setNewAddr(p => ({ ...p, street: e.target.value }))} className={inputCls} />
                             <div className='flex gap-2'>
                                 <input placeholder='City *' value={newAddr.city} onChange={e => setNewAddr(p => ({ ...p, city: e.target.value }))} className={inputCls} />
                                 <input placeholder='State *' value={newAddr.state} onChange={e => setNewAddr(p => ({ ...p, state: e.target.value }))} className={inputCls} />

@@ -1,22 +1,36 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext'
 import { assets } from '../assets/assets'
 import { toast } from 'react-toastify'
+import Recommendations from '../components/Recommendations'
 
 const Product = () => {
 
     const { productId } = useParams()
-    const { products, currency, addToCart, toggleWishlist, isInWishlist, navigate } = useContext(ShopContext)
+    const { products, currency, addToCart, toggleWishlist, isInWishlist, navigate, addToRecentlyViewed, trackBehavior } = useContext(ShopContext)
 
     const [product, setProduct] = useState(null)
     const [image, setImage] = useState('')
     const [size, setSize] = useState('')
 
     useEffect(() => {
+        window.scrollTo(0, 0)
         const found = products.find(p => p._id === productId)
-        if (found) { setProduct(found); setImage(found.image[0]) }
+        if (found) { setProduct(found); setImage(found.image[0]); addToRecentlyViewed(productId) }
     }, [productId, products])
+
+    const trackRef = useRef(trackBehavior)
+    useEffect(() => { trackRef.current = trackBehavior }, [trackBehavior])
+
+    useEffect(() => {
+        if (!productId) return
+        const start = Date.now()
+        return () => {
+            const seconds = Math.round((Date.now() - start) / 1000)
+            if (seconds >= 5) trackRef.current({ type: 'timeSpent', productId, seconds })
+        }
+    }, [productId])
 
     if (!product) return <div className='text-center py-20'>Loading...</div>
 
@@ -103,6 +117,7 @@ const Product = () => {
                     </div>
                 </div>
             </div>
+            <Recommendations mode='product' excludeId={productId} />
         </div>
     )
 }

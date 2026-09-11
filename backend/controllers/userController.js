@@ -29,6 +29,7 @@ const loginUser = async (req, res) => {
         const { email, password } = req.body;
         const user = await userModel.findOne({ email });
         if (!user) return res.json({ success: false, message: 'User not found' });
+        if (!user.password) return res.json({ success: false, message: 'This account uses Google login — please sign in with Google' });
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.json({ success: false, message: 'Invalid credentials' });
         res.json({ success: true, token: createToken(user._id, user.role, user.name), role: user.role });
@@ -156,6 +157,7 @@ const changePassword = async (req, res) => {
         const { currentPassword, newPassword } = req.body;
         if (!newPassword || newPassword.length < 8) return res.json({ success: false, message: 'New password must be at least 8 characters' });
         const user = await userModel.findById(req.userId);
+        if (!user.password) return res.json({ success: false, message: 'This account uses Google login — no password to change' });
         const match = await bcrypt.compare(currentPassword, user.password);
         if (!match) return res.json({ success: false, message: 'Current password is incorrect' });
         const hashed = await bcrypt.hash(newPassword, 10);

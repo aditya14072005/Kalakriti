@@ -177,4 +177,144 @@ const rejectVendorRequest = async (req, res) => {
     }
 };
 
-export { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser, getVendorRequests, approveVendorRequest, rejectVendorRequest };
+// POST /api/admin/seed-local — upsert local frontend products into DB
+const seedLocalProducts = async (req, res) => {
+    try {
+        const { products } = req.body;
+        if (!Array.isArray(products)) return res.json({ success: false, message: 'products array required' });
+        const results = [];
+        for (const p of products) {
+            let doc = await productModel.findOne({ legacyId: p._id });
+            if (!doc) {
+                doc = await productModel.create({
+                    name: p.name,
+                    description: p.description,
+                    price: p.price,
+                    image: p.image,
+                    category: p.category,
+                    subCategory: p.subCategory || '',
+                    sizes: p.sizes || [],
+                    bestseller: p.bestseller || false,
+                    date: p.date || Date.now(),
+                    status: 'approved',
+                    legacyId: p._id,
+                });
+            }
+            results.push({ legacyId: p._id, _id: doc._id });
+        }
+        res.json({ success: true, results });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const getBestsellers = async (req, res) => {
+    try {
+        const adminPicked = await productModel.find({ status: 'approved', bestseller: true }).lean();
+        const adminIds = new Set(adminPicked.map(p => p._id.toString()));
+
+        const orders = await orderModel.find({ payment: true }).lean();
+        const countMap = {};
+        orders.forEach(o => {
+            (o.items || []).forEach(item => {
+                countMap[item._id] = (countMap[item._id] || 0) + (item.quantity || 1);
+            });
+        });
+
+        const isValidId = id => /^[a-f\d]{24}$/i.test(id);
+
+        const sortedIds = Object.entries(countMap)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id]) => id)
+            .filter(isValidId);
+
+        const topIds = sortedIds.filter(id => !adminIds.has(id)).slice(0, Math.max(0, 5 - adminPicked.length));
+        const topProducts = topIds.length
+            ? await productModel.find({ _id: { $in: topIds }, status: 'approved' }).lean()
+            : [];
+
+        // recommendations: top 5 non-bestseller products by order count
+        const recIds = sortedIds.filter(id => !adminIds.has(id)).slice(0, 5);
+        const recProducts = recIds.length
+            ? await productModel.find({ _id: { $in: recIds }, status: 'approved', bestseller: false }).lean()
+            : [];
+        const recommendations = recProducts
+            .map(p => ({ ...p, orderCount: countMap[p._id.toString()] || 0 }))
+            .sort((a, b) => b.orderCount - a.orderCount);
+
+        const result = [...adminPicked, ...topProducts].slice(0, 5);
+        res.json({ success: true, products: result, recommendations });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/admin/bestseller/set
+const setBestseller = async (req, res) => {
+    try {
+        if (!/^[a-f\d]{24}$/i.test(req.body.productId))
+            return res.json({ success: false, message: 'Invalid product ID' });
+        await productModel.findByIdAndUpdate(req.body.productId, { bestseller: true });
+        res.json({ success: true, message: 'Marked as bestseller' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/admin/bestseller/remove
+const removeBestseller = async (req, res) => {
+    try {
+        if (!/^[a-f\d]{24}$/i.test(req.body.productId))
+            return res.json({ success: false, message: 'Invalid product ID' });
+        await productModel.findByIdAndUpdate(req.body.productId, { bestseller: false });
+        res.json({ success: true, message: 'Removed from bestsellers' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/deals — public
+const getDeals = async (req, res) => {
+    try {
+        const now = new Date();
+        const deals = await productModel.find({ status: 'approved', dealEndsAt: { $gt: now }, dealPrice: { $ne: null } });
+        res.json({ success: true, deals });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/admin/deals/set
+const setDeal = async (req, res) => {
+    try {
+        const { productId, dealPrice, hours } = req.body;
+        const dealEndsAt = new Date(Date.now() + (hours || 24) * 60 * 60 * 1000);
+        await productModel.findByIdAndUpdate(productId, { dealPrice, dealEndsAt });
+        res.json({ success: true, message: 'Deal set', dealEndsAt });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/admin/deals/remove
+const removeDeal = async (req, res) => {
+    try {
+        await productModel.findByIdAndUpdate(req.body.productId, { dealPrice: null, dealEndsAt: null });
+        res.json({ success: true, message: 'Deal removed' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/admin/deals — all active deals for admin
+const getAdminDeals = async (req, res) => {
+    try {
+        const now = new Date();
+        const deals = await productModel.find({ dealEndsAt: { $gt: now }, dealPrice: { $ne: null } });
+        res.json({ success: true, deals });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser, getVendorRequests, approveVendorRequest, rejectVendorRequest, getDeals, setDeal, removeDeal, getAdminDeals, getBestsellers, setBestseller, removeBestseller, seedLocalProducts };

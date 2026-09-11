@@ -6,13 +6,12 @@ import { assets } from '../assets/assets'
 
 const Collection = () => {
 
-  const { products } = useContext(ShopContext)
+  const { products, search, setSearch, trackBehavior } = useContext(ShopContext)
   const [showFilter, setShowFilter] = useState(false)
   const [category, setCategory] = useState([])
   const [subCategory, setSubCategory] = useState([])
   const [sortType, setSortType] = useState('relevant')
   const [currentPage, setCurrentPage] = useState(1)
-  const { search, setSearch } = useContext(ShopContext)
 
   // shuffle once on mount — stable for this visit, different next visit
   const [shuffled, setShuffled] = useState([])
@@ -28,8 +27,10 @@ const Collection = () => {
 
   const itemsPerPage = 12
 
-  const toggleFilter = (value, setter, state) => {
-    setter(state.includes(value) ? state.filter(i => i !== value) : [...state, value])
+  const toggleFilter = (value, setter, state, type) => {
+    const next = state.includes(value) ? state.filter(i => i !== value) : [...state, value]
+    setter(next)
+    if (!state.includes(value)) trackBehavior({ type, value })
   }
 
   const resetFilters = () => {
@@ -102,7 +103,7 @@ const Collection = () => {
               <label key={cat} className='flex gap-2 items-center cursor-pointer'>
                 <input type='checkbox' className='w-3'
                   checked={category.includes(cat)}
-                  onChange={() => toggleFilter(cat, setCategory, category)} />
+                  onChange={() => toggleFilter(cat, setCategory, category, 'category')} />
                 {cat}
               </label>
             ))}
@@ -117,7 +118,7 @@ const Collection = () => {
               <label key={sub} className='flex gap-2 items-center cursor-pointer'>
                 <input type='checkbox' className='w-3'
                   checked={subCategory.includes(sub)}
-                  onChange={() => toggleFilter(sub, setSubCategory, subCategory)} />
+                  onChange={() => toggleFilter(sub, setSubCategory, subCategory, 'subCategory')} />
                 {sub}
               </label>
             ))}

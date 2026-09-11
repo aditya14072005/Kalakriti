@@ -17,3 +17,7 @@ npm-debug.log*
 
 # OS
 .DS_Store
+
+# Firebase service account keys
+*-firebase-adminsdk-*.json
+*.serviceaccount.json

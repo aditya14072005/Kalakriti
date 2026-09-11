@@ -6,7 +6,8 @@ const productSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: { type: Array, required: true },
     category: { type: String, required: true },
-    subCategory: { type: String, required: true },
+    subCategory: { type: String, default: '' },
+    legacyId: { type: String, default: null, sparse: true },
     sizes: { type: Array, default: [] },
     bestseller: { type: Boolean, default: false },
     date: { type: Number, required: true },
@@ -15,6 +16,8 @@ const productSchema = new mongoose.Schema({
     vendorName: { type: String, default: null },
     rejectReason: { type: String, default: null },
     stock: { type: Number, default: 0 },
+    dealPrice: { type: Number, default: null },
+    dealEndsAt: { type: Date, default: null },
 }, { timestamps: true });
 
 const productModel = mongoose.models.product || mongoose.model('product', productSchema);

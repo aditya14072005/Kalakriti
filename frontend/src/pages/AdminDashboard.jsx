@@ -5,7 +5,7 @@ import { toast } from 'react-toastify'
 import { ShopContext } from '../context/ShopContext'
 
 const AdminDashboard = () => {
-    const { backendUrl, token, role, navigate, logout } = useContext(ShopContext)
+    const { backendUrl, token, role, navigate, logout, products: allProducts, fetchProducts } = useContext(ShopContext)
     const location = useLocation()
     const [tab, setTab] = useState(location.state?.tab || 'overview')
     const [productSubTab, setProductSubTab] = useState('approved')
@@ -24,6 +24,14 @@ const AdminDashboard = () => {
     const [productModal, setProductModal] = useState(null) // product object
     const [vendorRequests, setVendorRequests] = useState([])
     const [returnRequests, setReturnRequests] = useState([])
+    const [deals, setDeals] = useState([])
+    const [dealForm, setDealForm] = useState({ productId: '', dealPrice: '', hours: 24 })
+    const [dealSearch, setDealSearch] = useState('')
+    const [bestsellers, setBestsellers] = useState([])
+    const [bsRecommendations, setBsRecommendations] = useState([])
+    const [bsSearch, setBsSearch] = useState('')
+    const [bsTab, setBsTab] = useState('current')
+    const [productSearch, setProductSearch] = useState('')
 
     const h = { headers: { token } }
 
@@ -50,6 +58,11 @@ const AdminDashboard = () => {
             if (vr.data.success) setVendorRequests(vr.data.requests)
             const rr = await axios.get(`${backendUrl}/api/return/all`, h)
             if (rr.data.success) setReturnRequests(rr.data.requests)
+            const dr = await axios.get(`${backendUrl}/api/admin/deals`, h)
+            if (dr.data.success) setDeals(dr.data.deals)
+            const bs = await axios.get(`${backendUrl}/api/bestsellers`)
+            if (bs.data.success) { setBestsellers(bs.data.products); setBsRecommendations(bs.data.recommendations || []) }
+            fetchProducts()
         } catch (e) { toast.error(e.message) }
     }
 
@@ -164,6 +177,8 @@ const AdminDashboard = () => {
         { id: 'products', label: `📦 Products ${pendingProducts.length > 0 ? `(${pendingProducts.length} pending)` : ''}` },
         { id: 'orders', label: '🛒 Orders' },
         { id: 'returns', label: '↩️ Returns' },
+        { id: 'deals', label: `🏷️ Daily Deals${deals.length > 0 ? ` (${deals.length})` : ''}` },
+        { id: 'bestsellers', label: `⭐ Best Sellers (${bestsellers.length})` },
     ]
 
     const statCards = [
@@ -462,11 +477,17 @@ const AdminDashboard = () => {
                     {/* Approved Products */}
                     {productSubTab === 'approved' && (
                         <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
-                            <div className='p-4 border-b border-gray-100'>
-                                <p className='font-semibold text-gray-700'>All Approved Products ({products.length})</p>
+                            <div className='p-4 border-b border-gray-100 flex items-center gap-3'>
+                                <p className='font-semibold text-gray-700 flex-shrink-0'>All Approved Products ({products.length})</p>
+                                <input
+                                    placeholder='Search products...'
+                                    value={productSearch}
+                                    onChange={e => setProductSearch(e.target.value)}
+                                    className='ml-auto w-56 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-400'
+                                />
                             </div>
                             <div className='flex flex-col divide-y divide-gray-50'>
-                                {products.map((p, i) => (
+                                {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).map((p, i) => (
                                     <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setProductModal(p)}>
                                         <img src={p.image?.[0]} className='w-12 h-12 object-cover rounded-lg border border-gray-100' alt='' />
                                         <div className='flex-1 min-w-0'>
@@ -702,7 +723,264 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             )}
-            {/* Returns */}
+            {/* Daily Deals */}
+            {tab === 'deals' && (
+                <div className='space-y-6'>
+                    {/* Set Deal Form */}
+                    <div className='bg-white rounded-2xl border border-gray-100 shadow p-6'>
+                        <p className='font-semibold text-gray-700 mb-4'>🏷️ Set a Deal on a Product</p>
+                        <div className='flex flex-col sm:flex-row gap-3'>
+                            <div className='flex-1'>
+                                <label className='text-xs text-gray-500 mb-1 block'>Search & Select Product</label>
+                                <input
+                                    placeholder='Type product name...'
+                                    value={dealSearch}
+                                    onChange={e => setDealSearch(e.target.value)}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'
+                                />
+                                {dealSearch && (
+                                    <div className='border border-gray-200 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-sm'>
+                                        {products.filter(p => p.name.toLowerCase().includes(dealSearch.toLowerCase())).slice(0, 8).map(p => (
+                                            <div key={p._id}
+                                                onClick={() => { setDealForm(f => ({ ...f, productId: p._id })); setDealSearch(p.name) }}
+                                                className='flex items-center gap-2 px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm'>
+                                                <img src={p.image?.[0]} className='w-8 h-8 object-cover rounded' alt='' />
+                                                <span className='flex-1 truncate'>{p.name}</span>
+                                                <span className='text-orange-600 font-medium text-xs'>₹{p.price}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className='w-32'>
+                                <label className='text-xs text-gray-500 mb-1 block'>Deal Price (₹)</label>
+                                <input type='number' placeholder='e.g. 499'
+                                    value={dealForm.dealPrice}
+                                    onChange={e => setDealForm(f => ({ ...f, dealPrice: e.target.value }))}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'
+                                />
+                            </div>
+                            <div className='w-32'>
+                                <label className='text-xs text-gray-500 mb-1 block'>Duration (hours)</label>
+                                <input type='number' min='1' max='72'
+                                    value={dealForm.hours}
+                                    onChange={e => setDealForm(f => ({ ...f, hours: e.target.value }))}
+                                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'
+                                />
+                            </div>
+                            <div className='flex items-end'>
+                                <button
+                                    onClick={async () => {
+                                        if (!dealForm.productId || !dealForm.dealPrice) return toast.error('Select a product and set a deal price')
+                                        const { data } = await axios.post(`${backendUrl}/api/admin/deals/set`, dealForm, h)
+                                        if (data.success) { toast.success('Deal set!'); setDealForm({ productId: '', dealPrice: '', hours: 24 }); setDealSearch(''); fetchAll() }
+                                        else toast.error(data.message)
+                                    }}
+                                    className='bg-orange-500 text-white px-5 py-2 rounded-lg text-sm hover:bg-orange-600 transition font-medium'>
+                                    Set Deal
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Active Deals */}
+                    <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                        <div className='p-4 border-b border-gray-100'>
+                            <p className='font-semibold text-gray-700'>Active Deals ({deals.length})</p>
+                        </div>
+                        <div className='flex flex-col divide-y divide-gray-50'>
+                            {deals.map((p, i) => {
+                                const pct = Math.round(((p.price - p.dealPrice) / p.price) * 100)
+                                const remaining = Math.max(0, new Date(p.dealEndsAt) - Date.now())
+                                const hrs = Math.floor(remaining / 3600000)
+                                const mins = Math.floor((remaining % 3600000) / 60000)
+                                return (
+                                    <div key={i} className='flex items-center gap-4 px-4 py-3 hover:bg-orange-50/30 transition'>
+                                        <img src={p.image?.[0]} className='w-12 h-12 object-cover rounded-lg border border-gray-100' alt='' />
+                                        <div className='flex-1 min-w-0'>
+                                            <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
+                                            <p className='text-xs text-gray-400'>{p.category}</p>
+                                        </div>
+                                        <div className='text-center'>
+                                            <p className='text-xs text-gray-400 line-through'>₹{p.price}</p>
+                                            <p className='text-sm font-bold text-orange-600'>₹{p.dealPrice}</p>
+                                        </div>
+                                        <span className='bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full'>{pct}% OFF</span>
+                                        <span className='text-xs text-gray-400'>⏱ {hrs}h {mins}m left</span>
+                                        <button
+                                            onClick={async () => {
+                                                const { data } = await axios.post(`${backendUrl}/api/admin/deals/remove`, { productId: p._id }, h)
+                                                if (data.success) { toast.success('Deal removed'); fetchAll() }
+                                                else toast.error(data.message)
+                                            }}
+                                            className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition'>
+                                            Remove
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                            {deals.length === 0 && (
+                                <div className='text-center py-16 text-gray-400'>
+                                    <p className='text-4xl mb-3'>🏷️</p>
+                                    <p className='text-sm'>No active deals. Set one above!</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {tab === 'bestsellers' && (
+                <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 items-start'>
+                    {/* Left: Search + Tabbed Panel */}
+                    <div className='lg:col-span-2 space-y-6'>
+                        {/* Search & Mark */}
+                        <div className='bg-white rounded-2xl border border-gray-100 shadow p-6'>
+                            <p className='font-semibold text-gray-700 mb-3'>⭐ Mark a Product as Bestseller</p>
+                            <input
+                                placeholder='Type to search all products...'
+                                value={bsSearch}
+                                onChange={e => setBsSearch(e.target.value)}
+                                className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'
+                            />
+                            {bsSearch.trim() ? (
+                                <div className='mt-2 border border-gray-200 rounded-lg overflow-hidden'>
+                                    {(() => {
+                                        const filtered = allProducts.filter(p =>
+                                            p.name.toLowerCase().includes(bsSearch.toLowerCase())
+                                        )
+                                        return filtered.length === 0 ? (
+                                            <p className='px-4 py-3 text-sm text-gray-400'>No products found</p>
+                                        ) : filtered.map(p => (
+                                            <div key={p._id} className='flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 border-b border-gray-50 last:border-0'>
+                                                <img src={p.image?.[0]} className='w-9 h-9 object-cover rounded flex-shrink-0' alt='' />
+                                                <div className='flex-1 min-w-0'>
+                                                    <p className='text-sm font-medium text-gray-800 truncate'>{p.name}</p>
+                                                    <p className='text-xs text-gray-400'>{p.category} · ₹{p.price}</p>
+                                                </div>
+                                                {p.bestseller
+                                                    ? <span className='text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full flex-shrink-0'>⭐ Bestseller</span>
+                                                    : /^[a-f\d]{24}$/i.test(p._id) && <button
+                                                        onClick={async () => {
+                                                            const { data } = await axios.post(`${backendUrl}/api/admin/bestseller/set`, { productId: p._id }, h)
+                                                            if (data.success) { toast.success('Marked as bestseller'); setBsSearch(''); fetchAll() }
+                                                            else toast.error(data.message)
+                                                        }}
+                                                        className='text-xs bg-orange-500 text-white px-3 py-1 rounded-lg hover:bg-orange-600 transition flex-shrink-0'>
+                                                        Mark ⭐
+                                                    </button>
+                                                }
+                                            </div>
+                                        ))
+                                    })()}
+                                </div>
+                            ) : (
+                                <p className='text-xs text-gray-400 mt-2'>Start typing to search from {allProducts.length} products</p>
+                            )}
+                        </div>
+
+                        {/* Tabbed: Current Bestsellers / Recommended */}
+                        <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                            <div className='flex border-b border-gray-100'>
+                                <button
+                                    onClick={() => setBsTab('current')}
+                                    className={`flex-1 py-3 text-sm font-medium transition border-b-2 -mb-px ${
+                                        bsTab === 'current' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}>
+                                    ⭐ Current Bestsellers ({bestsellers.length})
+                                </button>
+                                <button
+                                    onClick={() => setBsTab('recommended')}
+                                    className={`flex-1 py-3 text-sm font-medium transition border-b-2 -mb-px ${
+                                        bsTab === 'recommended' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}>
+                                    💡 Recommended ({bsRecommendations.length})
+                                </button>
+                            </div>
+
+                            {bsTab === 'current' && (
+                                <div className='flex flex-col divide-y divide-gray-50'>
+                                    {bestsellers.map((p, i) => (
+                                        <div key={i} className='flex items-center gap-3 px-4 py-3 hover:bg-orange-50/30 transition'>
+                                            <span className='text-gray-300 text-xs font-bold w-5'>#{i + 1}</span>
+                                            <img src={p.image?.[0]} className='w-11 h-11 object-cover rounded-lg border border-gray-100' alt='' />
+                                            <div className='flex-1 min-w-0'>
+                                                <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
+                                                <p className='text-xs text-gray-400'>{p.category} · ₹{p.price}</p>
+                                            </div>
+                                            {p.bestseller
+                                                ? <span className='bg-yellow-100 text-yellow-600 text-xs px-2 py-0.5 rounded-full'>⭐ Admin</span>
+                                                : <span className='bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full'>📦 Top Ordered</span>
+                                            }
+                                            {p.bestseller && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const { data } = await axios.post(`${backendUrl}/api/admin/bestseller/remove`, { productId: p._id }, h)
+                                                        if (data.success) { toast.success('Removed'); fetchAll() }
+                                                        else toast.error(data.message)
+                                                    }}
+                                                    className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition'>
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {bestsellers.length === 0 && (
+                                        <div className='text-center py-12 text-gray-400'>
+                                            <p className='text-3xl mb-2'>⭐</p>
+                                            <p className='text-sm'>No bestsellers yet</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {bsTab === 'recommended' && (
+                                <div className='flex flex-col divide-y divide-gray-50'>
+                                    {bsRecommendations.length === 0 ? (
+                                        <div className='text-center py-12 text-gray-400'>
+                                            <p className='text-3xl mb-2'>💡</p>
+                                            <p className='text-sm'>No recommendations yet</p>
+                                        </div>
+                                    ) : bsRecommendations.map((p, i) => (
+                                        <div key={p._id} className='flex items-center gap-3 px-4 py-3 hover:bg-amber-50/30 transition'>
+                                            <span className='text-amber-400 font-bold text-xs w-5'>#{i + 1}</span>
+                                            <img src={p.image?.[0]} className='w-11 h-11 object-cover rounded-lg border border-gray-100' alt='' />
+                                            <div className='flex-1 min-w-0'>
+                                                <p className='font-medium text-gray-800 text-sm truncate'>{p.name}</p>
+                                                <p className='text-xs text-gray-400'>{p.category} · ₹{p.price}</p>
+                                            </div>
+                                            <span className='bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full'>{p.orderCount} orders</span>
+                                            <button
+                                                onClick={async () => {
+                                                    const { data } = await axios.post(`${backendUrl}/api/admin/bestseller/set`, { productId: p._id }, h)
+                                                    if (data.success) { toast.success('Marked!'); fetchAll() }
+                                                    else toast.error(data.message)
+                                                }}
+                                                className='text-xs bg-amber-500 text-white px-3 py-1 rounded-lg hover:bg-amber-600 transition'>
+                                                Mark ⭐
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right: sticky info */}
+                    <div className='lg:col-span-1 sticky top-24'>
+                        <div className='bg-amber-50 border border-amber-200 rounded-2xl p-5'>
+                            <p className='font-semibold text-amber-800 mb-1'>ℹ️ How it works</p>
+                            <ul className='text-xs text-amber-700 space-y-2 mt-3'>
+                                <li>⭐ Admin-marked products always appear first</li>
+                                <li>📦 Remaining slots filled by top-ordered products</li>
+                                <li>🔢 Max 5 bestsellers shown on the site</li>
+                                <li>💡 Recommended tab shows non-bestseller products sorted by order count</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {tab === 'returns' && (
                 <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
                     <div className='p-4 border-b border-gray-100'>

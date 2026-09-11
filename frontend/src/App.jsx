@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react"
+import React, { useContext, useEffect, useState } from "react"
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { ToastContainer } from "react-toastify"
 import 'react-toastify/dist/ReactToastify.css'
@@ -18,12 +18,15 @@ import VendorDashboard from "./pages/VendorDashboard"
 import AdminDashboard from "./pages/AdminDashboard"
 import Wishlist from "./pages/Wishlist"
 import Profile from "./pages/Profile"
+import AuthCallback from "./pages/AuthCallback"
+import DailyDeals from "./pages/DailyDeals"
 
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import AnimatedBackground from "./components/AnimatedIndianBackground"
 import ProtectedRoute from "./components/ProtectedRoute"
 import IntroAnimation from "./components/IntroAnimation"
+import RecentlyViewed from "./components/RecentlyViewed"
 import { ShopContext } from "./context/ShopContext"
 
 
@@ -31,6 +34,7 @@ import { ShopContext } from "./context/ShopContext"
 const App = () => {
   const { role, token } = useContext(ShopContext)
   const location = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
   const onDashboard = (role === 'vendor' || role === 'admin') && (location.pathname === '/admin' || location.pathname === '/vendor-dashboard')
   const [introDone, setIntroDone] = useState(false)
   if (token && !role) return null
@@ -52,6 +56,8 @@ const App = () => {
             <Route path="/product/:productId" element={<Product />} />
             <Route path="/login" element={<Login />} />
             <Route path="/vendor" element={<Vendor />} />
+            <Route path="/daily-deals" element={<DailyDeals />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/wishlist" element={<ProtectedRoute allowedRoles={['customer']}><Wishlist /></ProtectedRoute>} />
             <Route path="/cart" element={<ProtectedRoute allowedRoles={['customer']}><Cart /></ProtectedRoute>} />
             <Route path="/place-order" element={<ProtectedRoute allowedRoles={['customer']}><PlaceOrder /></ProtectedRoute>} />

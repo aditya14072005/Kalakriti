@@ -1,5 +1,5 @@
 import express from 'express';
-import { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser, getVendorRequests, approveVendorRequest, rejectVendorRequest } from '../controllers/adminController.js';
+import { getStats, getAllUsers, updateUserRole, deleteUser, getAllOrders, updateOrderStatus, deleteOrder, getAllProducts, deleteProduct, createUser, getVendorRequests, approveVendorRequest, rejectVendorRequest, setDeal, removeDeal, getAdminDeals, setBestseller, removeBestseller, seedLocalProducts } from '../controllers/adminController.js';
 import { authAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -17,5 +17,12 @@ router.post('/create', authAdmin, createUser);
 router.get('/vendor-requests', authAdmin, getVendorRequests);
 router.post('/vendor-request/approve', authAdmin, approveVendorRequest);
 router.post('/vendor-request/reject', authAdmin, rejectVendorRequest);
+router.get('/deals', authAdmin, getAdminDeals);
+router.post('/deals/set', authAdmin, setDeal);
+router.post('/deals/remove', authAdmin, removeDeal);
+
+router.post('/bestseller/set', authAdmin, setBestseller);
+router.post('/bestseller/remove', authAdmin, removeBestseller);
+router.post('/seed-local', seedLocalProducts);
 
 export default router;
