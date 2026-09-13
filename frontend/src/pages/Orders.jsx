@@ -70,7 +70,11 @@ const Orders = () => {
     const loadOrders = async () => {
         try {
             const { data } = await axios.post(`${backendUrl}/api/order/userorders`, {}, { headers: { token } })
-            if (data.success) setOrders(data.orders.reverse())
+            if (data.success) setOrders(
+                data.orders
+                    .filter(o => o.paymentMethod === 'COD' || o.payment === true)
+                    .reverse()
+            )
         } catch (error) {
             toast.error(error.message)
         }

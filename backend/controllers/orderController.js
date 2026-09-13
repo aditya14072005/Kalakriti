@@ -44,6 +44,10 @@ const placeOrderStripe = async (req, res) => {
                 return { ...item, vendorId: p?.vendorId || null };
             } catch { return { ...item, vendorId: null }; }
         }));
+
+        // delete any previous unpaid Stripe orders for this user to prevent duplicates
+        await orderModel.deleteMany({ userId, paymentMethod: 'Stripe', payment: false });
+
         const order = await orderModel.create({ userId, items: enriched, amount, address, paymentMethod: 'Stripe', payment: false, date: Date.now() });
 
         const line_items = items.map(item => ({
