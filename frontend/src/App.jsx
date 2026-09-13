@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard"
 import Wishlist from "./pages/Wishlist"
 import Profile from "./pages/Profile"
 import AuthCallback from "./pages/AuthCallback"
+import DailyDeals from "./pages/DailyDeals"
 import BestSellers from "./pages/BestSellers"
 
 import Navbar from "./components/Navbar"
