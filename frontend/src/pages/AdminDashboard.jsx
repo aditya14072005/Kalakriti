@@ -9,7 +9,8 @@ const AdminDashboard = () => {
     const location = useLocation()
     const [tab, setTab] = useState(location.state?.tab || 'overview')
     const [productSubTab, setProductSubTab] = useState('approved')
-    const [addForm, setAddForm] = useState({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false })
+    const [addForm, setAddForm] = useState({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false, tags: [] })
+    const [tagInput, setTagInput] = useState('')
     const [addImages, setAddImages] = useState({ image1: null, image2: null, image3: null, image4: null })
     const [stats, setStats] = useState({})
     const [users, setUsers] = useState([])
@@ -33,7 +34,30 @@ const AdminDashboard = () => {
     const [bsTab, setBsTab] = useState('current')
     const [productSearch, setProductSearch] = useState('')
 
+    const [editModal, setEditModal] = useState(null)
+    const [editForm, setEditForm] = useState({})
+    const [editTagInput, setEditTagInput] = useState('')
+    const [editImages, setEditImages] = useState({ image1: null, image2: null, image3: null, image4: null })
+
     const h = { headers: { token } }
+
+    const openEdit = (p) => {
+        setEditModal(p)
+        setEditForm({ name: p.name, description: p.description, price: p.price, category: p.category, subCategory: p.subCategory, sizes: p.sizes || [], bestseller: p.bestseller || false, tags: p.tags || [] })
+        setEditTagInput('')
+        setEditImages({ image1: null, image2: null, image3: null, image4: null })
+    }
+
+    const saveEdit = async (e) => {
+        e.preventDefault()
+        const fd = new FormData()
+        fd.append('productId', editModal._id)
+        Object.entries(editForm).forEach(([k, v]) => fd.append(k, k === 'sizes' || k === 'tags' ? JSON.stringify(v) : v))
+        Object.entries(editImages).forEach(([k, v]) => { if (v) fd.append(k, v) })
+        const { data } = await axios.put(`${backendUrl}/api/product/edit`, fd, h)
+        if (data.success) { toast.success('Product updated!'); setEditModal(null); fetchAll() }
+        else toast.error(data.message)
+    }
 
     useEffect(() => {
         if (role !== 'admin') { navigate('/'); return }
@@ -100,13 +124,14 @@ const AdminDashboard = () => {
         try {
             const fd = new FormData()
             Object.entries(addForm).forEach(([k, v]) =>
-                fd.append(k, k === 'sizes' ? JSON.stringify(v) : v)
+                fd.append(k, k === 'sizes' || k === 'tags' ? JSON.stringify(v) : v)
             )
             Object.entries(addImages).forEach(([k, v]) => { if (v) fd.append(k, v) })
             const { data } = await axios.post(`${backendUrl}/api/product/add`, fd, h)
             if (data.success) {
                 toast.success('Product added!')
-                setAddForm({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false })
+                setAddForm({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false, tags: [] })
+                setTagInput('')
                 setAddImages({ image1: null, image2: null, image3: null, image4: null })
                 fetchAll()
             } else toast.error(data.message)
@@ -223,6 +248,94 @@ const AdminDashboard = () => {
 
             <div className='max-w-7xl mx-auto px-6 pt-6 pb-16'>
 
+            {/* Edit Product Modal */}
+            {editModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setEditModal(null)}>
+                    <form onSubmit={saveEdit} className='bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto' onClick={e => e.stopPropagation()}>
+                        <div className='flex items-center justify-between'>
+                            <h3 className='text-lg font-semibold text-gray-800'>Edit Product</h3>
+                            <button type='button' onClick={() => setEditModal(null)} className='text-gray-400 hover:text-gray-600 text-xl leading-none'>✕</button>
+                        </div>
+                        <div className='grid sm:grid-cols-2 gap-3'>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Name *</label>
+                                <input required value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400' />
+                            </div>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Price (₹) *</label>
+                                <input required type='number' value={editForm.price} onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400' />
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-1 block'>Description *</label>
+                            <textarea required rows={3} value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 resize-none' />
+                        </div>
+                        <div className='grid sm:grid-cols-2 gap-3'>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Category</label>
+                                <select value={editForm.category} onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'>
+                                    {['Women','Men','Kids','Home Decor'].map(c => <option key={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Sub Category</label>
+                                <select value={editForm.subCategory} onChange={e => setEditForm(p => ({ ...p, subCategory: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400'>
+                                    {['Kurtiwear','SareeWear','EthnicWear','WesternWear','Accessories','Footwear','Bottomwear','Toys','Wall Art','Lighting'].map(s => <option key={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Sizes</label>
+                            <div className='flex gap-2 flex-wrap'>
+                                {['XS','S','M','L','XL','XXL'].map(size => (
+                                    <button type='button' key={size}
+                                        onClick={() => setEditForm(p => ({ ...p, sizes: p.sizes.includes(size) ? p.sizes.filter(s => s !== size) : [...p.sizes, size] }))}
+                                        className={`px-3 py-1 rounded-lg text-xs border transition ${editForm.sizes?.includes(size) ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-300 text-gray-600 hover:border-orange-300'}`}>
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Tags <span className='text-gray-400 font-normal'>(press Enter)</span></label>
+                            <div className='flex flex-wrap gap-1.5 mb-2'>
+                                {editForm.tags?.map((tag, i) => (
+                                    <span key={i} className='flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full'>
+                                        #{tag}
+                                        <button type='button' onClick={() => setEditForm(p => ({ ...p, tags: p.tags.filter((_, j) => j !== i) }))} className='hover:text-red-500'>×</button>
+                                    </span>
+                                ))}
+                            </div>
+                            <input placeholder='Add tag...' value={editTagInput} onChange={e => setEditTagInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const t = editTagInput.trim().toLowerCase(); if (t && !editForm.tags?.includes(t)) setEditForm(p => ({ ...p, tags: [...(p.tags||[]), t] })); setEditTagInput('') }}}
+                                className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400' />
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Replace Images (optional)</label>
+                            <div className='flex gap-2 flex-wrap'>
+                                {['image1','image2','image3','image4'].map((key, i) => (
+                                    <label key={key} className='cursor-pointer'>
+                                        <div className='w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 hover:bg-gray-100 transition'>
+                                            {editImages[key]
+                                                ? <img src={URL.createObjectURL(editImages[key])} className='w-full h-full object-cover' alt='' />
+                                                : editModal.image?.[i]
+                                                ? <img src={editModal.image[i]} className='w-full h-full object-cover' alt='' />
+                                                : <span className='text-xl text-gray-400'>+</span>}
+                                        </div>
+                                        <input type='file' accept='image/*' hidden onChange={e => setEditImages(prev => ({ ...prev, [key]: e.target.files[0] }))} />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <label className='flex items-center gap-2 cursor-pointer'>
+                            <input type='checkbox' checked={editForm.bestseller} onChange={e => setEditForm(p => ({ ...p, bestseller: e.target.checked }))} className='w-4 h-4' />
+                            <span className='text-sm text-gray-600'>Mark as Bestseller</span>
+                        </label>
+                        <button type='submit' className='bg-orange-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-orange-700 transition'>Save Changes</button>
+                    </form>
+                </div>
+            )}
+
             {/* Product Detail Modal */}
             {productModal && (
                 <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setProductModal(null)}>
@@ -248,6 +361,16 @@ const AdminDashboard = () => {
                         </div>
                         {productModal.description && (
                             <div><p className='text-xs text-gray-400 mb-1'>Description</p><p className='text-sm text-gray-600 leading-relaxed'>{productModal.description}</p></div>
+                        )}
+                        {productModal.tags?.length > 0 && (
+                            <div>
+                                <p className='text-xs text-gray-400 mb-1'>Tags</p>
+                                <div className='flex flex-wrap gap-1.5'>
+                                    {productModal.tags.map((tag, i) => (
+                                        <span key={i} className='bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full'>#{tag}</span>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                         {productModal.rejectReason && (
                             <div className='bg-red-50 rounded-lg p-3'><p className='text-xs text-red-400 mb-1'>Reject Reason</p><p className='text-sm text-red-600'>{productModal.rejectReason}</p></div>
@@ -497,6 +620,10 @@ const AdminDashboard = () => {
                                         </div>
                                         <p className='font-semibold text-orange-600 text-sm'>₹{p.price}</p>
                                         {p.bestseller && <span className='bg-yellow-100 text-yellow-600 text-xs px-2 py-0.5 rounded-full'>⭐ Best</span>}
+                                        <button onClick={e => { e.stopPropagation(); openEdit(p) }}
+                                            className='text-blue-500 hover:text-blue-700 text-xs border border-blue-200 px-3 py-1 rounded-lg hover:bg-blue-50 transition'>
+                                            Edit
+                                        </button>
                                         <button onClick={e => { e.stopPropagation(); deleteProduct(p._id) }}
                                             className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50 transition'>
                                             Delete
@@ -579,6 +706,30 @@ const AdminDashboard = () => {
                                             </label>
                                         ))}
                                     </div>
+                                </div>
+                                <div>
+                                    <label className='text-xs font-medium text-gray-600 mb-2 block'>Tags <span className='text-gray-400 font-normal'>(press Enter to add)</span></label>
+                                    <div className='flex flex-wrap gap-1.5 mb-2'>
+                                        {addForm.tags.map((tag, i) => (
+                                            <span key={i} className='flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full'>
+                                                #{tag}
+                                                <button type='button' onClick={() => setAddForm(p => ({ ...p, tags: p.tags.filter((_, j) => j !== i) }))} className='hover:text-red-500 leading-none'>×</button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <input
+                                        placeholder='e.g. birthday gift, festive, summer...'
+                                        value={tagInput}
+                                        onChange={e => setTagInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                const t = tagInput.trim().toLowerCase()
+                                                if (t && !addForm.tags.includes(t)) setAddForm(p => ({ ...p, tags: [...p.tags, t] }))
+                                                setTagInput('')
+                                            }
+                                        }}
+                                        className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400' />
                                 </div>
                                 <label className='flex items-center gap-2 cursor-pointer'>
                                     <input type='checkbox' checked={addForm.bestseller}

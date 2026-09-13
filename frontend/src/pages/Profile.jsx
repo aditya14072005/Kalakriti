@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext'
 import axios from 'axios'
@@ -8,7 +8,7 @@ import Title from '../components/Title'
 const EMPTY_ADDR = { label: '', firstName: '', lastName: '', street: '', city: '', state: '', zipcode: '', country: '', phone: '' }
 
 const Profile = () => {
-    const { backendUrl, token, userName, setToken } = useContext(ShopContext)
+    const { backendUrl, token, userName, setToken, setUserAvatar } = useContext(ShopContext)
     const location = useLocation()
     const [profile, setProfile] = useState(null)
     const [editName, setEditName] = useState(false)
@@ -19,6 +19,22 @@ const Profile = () => {
     const [activeTab, setActiveTab] = useState(location.state?.tab || 'profile')
     const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
     const [pwLoading, setPwLoading] = useState(false)
+
+    const [avatarLoading, setAvatarLoading] = useState(false)
+    const avatarInputRef = React.useRef(null)
+
+    const uploadAvatar = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        if (file.size > 2 * 1024 * 1024) return toast.error('Image must be under 2MB')
+        setAvatarLoading(true)
+        const form = new FormData()
+        form.append('avatar', file)
+        const { data } = await axios.post(`${backendUrl}/api/user/upload-avatar`, form, { headers: { token } })
+        if (data.success) { toast.success('Profile photo updated!'); setUserAvatar(data.avatar); fetchProfile() }
+        else toast.error(data.message)
+        setAvatarLoading(false)
+    }
 
     const h = { headers: { token } }
 
@@ -93,12 +109,20 @@ const Profile = () => {
                 <div className='max-w-md'>
                     {/* Avatar */}
                     <div className='flex items-center gap-4 mb-6'>
-                        <div className='w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-white text-2xl font-bold'>
-                            {profile.name.charAt(0).toUpperCase()}
+                        <div className='relative group cursor-pointer' onClick={() => avatarInputRef.current.click()}>
+                            {profile.avatar
+                                ? <img src={profile.avatar} alt='avatar' className='w-16 h-16 rounded-full object-cover border-2 border-orange-300'/>
+                                : <div className='w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-white text-2xl font-bold'>{profile.name.charAt(0).toUpperCase()}</div>
+                            }
+                            <div className='absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition'>
+                                {avatarLoading ? <span className='text-white text-xs'>...</span> : <span className='text-white text-xs'>📷</span>}
+                            </div>
                         </div>
+                        <input ref={avatarInputRef} type='file' accept='image/*' className='hidden' onChange={uploadAvatar}/>
                         <div>
                             <p className='font-bold text-gray-800 text-lg'>{profile.name}</p>
                             <p className='text-sm text-orange-500 capitalize'>{profile.role}</p>
+                            <p className='text-xs text-gray-400 mt-0.5'>Click photo to change</p>
                         </div>
                     </div>
 

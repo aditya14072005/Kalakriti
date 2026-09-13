@@ -44,7 +44,14 @@ const Collection = () => {
   const filterProducts = useMemo(() => {
     let filtered = sortType === 'relevant' ? [...shuffled] : [...products]
 
-    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    if (search) filtered = filtered.filter(p => {
+      const q = search.toLowerCase()
+      return p.name.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.subCategory?.toLowerCase().includes(q) ||
+        p.tags?.some(t => t.toLowerCase().includes(q))
+    })
     if (category.length) filtered = filtered.filter(p => category.includes(p.category))
     if (subCategory.length) filtered = filtered.filter(p =>
       subCategory.some(s => p.subCategory?.includes(s))

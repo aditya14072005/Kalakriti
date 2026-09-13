@@ -36,6 +36,7 @@ const ShopContextProvider = (props) => {
     const [token, setToken] = useState(localStorage.getItem('token') || '');
     const [role, setRole] = useState(getRole(localStorage.getItem('token')));
     const [userName, setUserName] = useState(getUserName(localStorage.getItem('token')));
+    const [userAvatar, setUserAvatar] = useState(null);
     const [cartItems, setCartItems] = useState({});
     const [wishlistItems, setWishlistItems] = useState(() => {
         try {
@@ -153,12 +154,20 @@ const ShopContextProvider = (props) => {
         });
     };
 
+    const fetchAvatar = async (userToken) => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/user/profile`, { headers: { token: userToken } });
+            if (data.success) setUserAvatar(data.user.avatar || null);
+        } catch {}
+    };
+
     // ── Auth ──────────────────────────────────────────────
     const logout = () => {
         if (!window.confirm('Are you sure you want to logout?')) return
         setToken('');
         setRole(null);
         setUserName(null);
+        setUserAvatar(null);
         localStorage.removeItem('token');
         setCartItems({});
         setWishlistItems([]);
@@ -181,6 +190,7 @@ const ShopContextProvider = (props) => {
             setRole(getRole(token));
             setUserName(getUserName(token));
             getUserCart(token);
+            fetchAvatar(token);
             // restore this user's wishlist
             try {
                 const key = wishlistKey(token);
@@ -202,7 +212,7 @@ const ShopContextProvider = (props) => {
         products, fetchProducts, currency, delivery_fee, backendUrl,
         token, setToken,
         role, setRole,
-        userName,
+        userName, userAvatar, setUserAvatar,
         cartItems, setCartItems,
         wishlistItems, setWishlistItems,
         addToCart, updateQuantity,

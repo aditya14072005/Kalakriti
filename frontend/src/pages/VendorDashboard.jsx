@@ -20,10 +20,34 @@ const VendorDashboard = () => {
     const [stockInputs, setStockInputs] = useState({})
 
     const [productForm, setProductForm] = useState({
-        name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false
+        name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false, tags: []
     })
+    const [tagInput, setTagInput] = useState('')
     const [images, setImages] = useState({ image1: null, image2: null, image3: null, image4: null })
     const [productModal, setProductModal] = useState(null)
+
+    const [editModal, setEditModal] = useState(null)
+    const [editForm, setEditForm] = useState({})
+    const [editTagInput, setEditTagInput] = useState('')
+    const [editImages, setEditImages] = useState({ image1: null, image2: null, image3: null, image4: null })
+
+    const openEdit = (p) => {
+        setEditModal(p)
+        setEditForm({ name: p.name, description: p.description, price: p.price, category: p.category, subCategory: p.subCategory, sizes: p.sizes || [], bestseller: p.bestseller || false, tags: p.tags || [] })
+        setEditTagInput('')
+        setEditImages({ image1: null, image2: null, image3: null, image4: null })
+    }
+
+    const saveEdit = async (e) => {
+        e.preventDefault()
+        const fd = new FormData()
+        fd.append('productId', editModal._id)
+        Object.entries(editForm).forEach(([k, v]) => fd.append(k, k === 'sizes' || k === 'tags' ? JSON.stringify(v) : v))
+        Object.entries(editImages).forEach(([k, v]) => { if (v) fd.append(k, v) })
+        const { data } = await axios.put(`${backendUrl}/api/product/edit`, fd, { headers: { token } })
+        if (data.success) { toast.success('Product updated!'); setEditModal(null); fetchDashboardData() }
+        else toast.error(data.message)
+    }
 
     const categories = ['Women', 'Men', 'Kids', 'Home Decor']
     const subCategories = {
@@ -76,13 +100,14 @@ const VendorDashboard = () => {
         try {
             const fd = new FormData()
             Object.entries(productForm).forEach(([k, v]) =>
-                fd.append(k, k === 'sizes' ? JSON.stringify(v) : v)
+                fd.append(k, k === 'sizes' || k === 'tags' ? JSON.stringify(v) : v)
             )
             Object.entries(images).forEach(([k, v]) => { if (v) fd.append(k, v) })
             const { data } = await axios.post(`${backendUrl}/api/product/submit`, fd, { headers: { token } })
             if (data.success) {
                 toast.success('Product submitted for admin approval!')
-                setProductForm({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false })
+                setProductForm({ name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false, tags: [] })
+                setTagInput('')
                 setImages({ image1: null, image2: null, image3: null, image4: null })
                 await fetchDashboardData()
                 setProductSubTab('pending')
@@ -141,6 +166,89 @@ const VendorDashboard = () => {
 
 return (
         <div className='min-h-screen bg-gray-50'>
+            {/* Edit Product Modal */}
+            {editModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setEditModal(null)}>
+                    <form onSubmit={saveEdit} className='bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto' onClick={e => e.stopPropagation()}>
+                        <div className='flex items-center justify-between'>
+                            <h3 className='text-lg font-semibold text-gray-800'>Edit Product</h3>
+                            <button type='button' onClick={() => setEditModal(null)} className='text-gray-400 hover:text-gray-600 text-xl leading-none'>✕</button>
+                        </div>
+                        <div className='grid sm:grid-cols-2 gap-3'>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Name *</label>
+                                <input required value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Price (₹) *</label>
+                                <input required type='number' value={editForm.price} onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-1 block'>Description *</label>
+                            <textarea required rows={3} value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none' />
+                        </div>
+                        <div className='grid sm:grid-cols-2 gap-3'>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Category</label>
+                                <select value={editForm.category} onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400'>
+                                    {categories.map(c => <option key={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className='text-xs text-gray-500 mb-1 block'>Sub Category</label>
+                                <select value={editForm.subCategory} onChange={e => setEditForm(p => ({ ...p, subCategory: e.target.value }))} className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400'>
+                                    {(subCategories[editForm.category] || subCategories['Women']).map(s => <option key={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Sizes</label>
+                            <div className='flex gap-2 flex-wrap'>
+                                {['XS','S','M','L','XL','XXL'].map(size => (
+                                    <button type='button' key={size}
+                                        onClick={() => setEditForm(p => ({ ...p, sizes: p.sizes.includes(size) ? p.sizes.filter(s => s !== size) : [...p.sizes, size] }))}
+                                        className={`px-3 py-1 rounded-lg text-xs border transition ${editForm.sizes?.includes(size) ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 text-gray-600 hover:border-blue-300'}`}>
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Tags <span className='text-gray-400 font-normal'>(press Enter)</span></label>
+                            <div className='flex flex-wrap gap-1.5 mb-2'>
+                                {editForm.tags?.map((tag, i) => (
+                                    <span key={i} className='flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full'>
+                                        #{tag}
+                                        <button type='button' onClick={() => setEditForm(p => ({ ...p, tags: p.tags.filter((_, j) => j !== i) }))} className='hover:text-red-500'>×</button>
+                                    </span>
+                                ))}
+                            </div>
+                            <input placeholder='Add tag...' value={editTagInput} onChange={e => setEditTagInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const t = editTagInput.trim().toLowerCase(); if (t && !editForm.tags?.includes(t)) setEditForm(p => ({ ...p, tags: [...(p.tags||[]), t] })); setEditTagInput('') }}}
+                                className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
+                        </div>
+                        <div>
+                            <label className='text-xs text-gray-500 mb-2 block'>Replace Images (optional)</label>
+                            <div className='flex gap-2 flex-wrap'>
+                                {['image1','image2','image3','image4'].map((key, i) => (
+                                    <label key={key} className='cursor-pointer'>
+                                        <div className='w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 hover:bg-gray-100 transition'>
+                                            {editImages[key]
+                                                ? <img src={URL.createObjectURL(editImages[key])} className='w-full h-full object-cover' alt='' />
+                                                : editModal.image?.[i]
+                                                ? <img src={editModal.image[i]} className='w-full h-full object-cover' alt='' />
+                                                : <span className='text-xl text-gray-400'>+</span>}
+                                        </div>
+                                        <input type='file' accept='image/*' hidden onChange={e => setEditImages(prev => ({ ...prev, [key]: e.target.files[0] }))} />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <button type='submit' className='bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition'>Save Changes</button>
+                    </form>
+                </div>
+            )}
             {/* Product Detail Modal */}
             {productModal && (
                 <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setProductModal(null)}>
@@ -164,6 +272,16 @@ return (
                         </div>
                         {productModal.description && (
                             <div><p className='text-xs text-gray-400 mb-1'>Description</p><p className='text-sm text-gray-600 leading-relaxed'>{productModal.description}</p></div>
+                        )}
+                        {productModal.tags?.length > 0 && (
+                            <div>
+                                <p className='text-xs text-gray-400 mb-1'>Tags</p>
+                                <div className='flex flex-wrap gap-1.5'>
+                                    {productModal.tags.map((tag, i) => (
+                                        <span key={i} className='bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full'>#{tag}</span>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                         {productModal.rejectReason && (
                             <div className='bg-red-50 rounded-lg p-3'><p className='text-xs text-red-400 mb-1'>Reject Reason</p><p className='text-sm text-red-600'>{productModal.rejectReason}</p></div>
@@ -350,10 +468,16 @@ return (
                                             <p className='text-xs text-gray-500 mb-2'>{p.category} • {p.subCategory}</p>
                                             <div className='flex items-center justify-between'>
                                                 <span className='font-bold text-blue-600'>₹{p.price}</span>
-                                                <button onClick={e => { e.stopPropagation(); removeProduct(p._id) }}
-                                                    className='text-red-500 text-xs border border-red-200 px-3 py-1 rounded hover:bg-red-50 transition'>
-                                                    Remove
-                                                </button>
+                                                <div className='flex gap-2'>
+                                                    <button onClick={e => { e.stopPropagation(); openEdit(p) }}
+                                                        className='text-blue-500 text-xs border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition'>
+                                                        Edit
+                                                    </button>
+                                                    <button onClick={e => { e.stopPropagation(); removeProduct(p._id) }}
+                                                        className='text-red-500 text-xs border border-red-200 px-3 py-1 rounded hover:bg-red-50 transition'>
+                                                        Remove
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -441,6 +565,30 @@ return (
                                                 </label>
                                             ))}
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label className='text-xs font-medium text-gray-600 mb-2 block'>Tags <span className='text-gray-400 font-normal'>(press Enter to add)</span></label>
+                                        <div className='flex flex-wrap gap-1.5 mb-2'>
+                                            {productForm.tags.map((tag, i) => (
+                                                <span key={i} className='flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full'>
+                                                    #{tag}
+                                                    <button type='button' onClick={() => setProductForm(p => ({ ...p, tags: p.tags.filter((_, j) => j !== i) }))} className='hover:text-red-500 leading-none'>×</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <input
+                                            placeholder='e.g. birthday gift, festive, summer...'
+                                            value={tagInput}
+                                            onChange={e => setTagInput(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault()
+                                                    const t = tagInput.trim().toLowerCase()
+                                                    if (t && !productForm.tags.includes(t)) setProductForm(p => ({ ...p, tags: [...p.tags, t] }))
+                                                    setTagInput('')
+                                                }
+                                            }}
+                                            className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400' />
                                     </div>
                                     <label className='flex items-center gap-2 cursor-pointer'>
                                         <input type='checkbox' checked={productForm.bestseller}

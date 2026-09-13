@@ -16,6 +16,7 @@ const productSchema = new mongoose.Schema({
     vendorName: { type: String, default: null },
     rejectReason: { type: String, default: null },
     stock: { type: Number, default: 0 },
+    tags: { type: [String], default: [] },
     dealPrice: { type: Number, default: null },
     dealEndsAt: { type: Date, default: null },
 }, { timestamps: true });

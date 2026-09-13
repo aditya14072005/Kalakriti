@@ -168,4 +168,19 @@ const changePassword = async (req, res) => {
     }
 };
 
-export { registerUser, loginUser, registerVendor, getProfile, updateProfile, saveAddress, deleteAddress, submitVendorRequest, changePassword };
+// POST /api/user/upload-avatar
+import { v2 as cloudinary } from 'cloudinary';
+const uploadAvatar = async (req, res) => {
+    try {
+        if (!req.file) return res.json({ success: false, message: 'No file uploaded' });
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+        const result = await cloudinary.uploader.upload(dataUri, { folder: 'kalakriti/avatars', transformation: [{ width: 200, height: 200, crop: 'fill', gravity: 'face' }] });
+        await userModel.findByIdAndUpdate(req.userId, { avatar: result.secure_url });
+        res.json({ success: true, avatar: result.secure_url });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { registerUser, loginUser, registerVendor, getProfile, updateProfile, saveAddress, deleteAddress, submitVendorRequest, changePassword, uploadAvatar };

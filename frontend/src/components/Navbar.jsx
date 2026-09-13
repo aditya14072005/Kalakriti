@@ -18,7 +18,7 @@ const NavBar = () => {
   const searchRef = useRef(null);
   const profileRef = useRef(null);
 
-  const { getCartCount, getWishlistCount, token, logout, navigate, search, setSearch, showSearch, setShowSearch, role, userName } = useContext(ShopContext);
+  const { getCartCount, getWishlistCount, token, logout, navigate, search, setSearch, showSearch, setShowSearch, role, userName, userAvatar } = useContext(ShopContext);
 
   const recognitionRef = useRef(null);
   const listeningRef = useRef(false);
@@ -414,15 +414,18 @@ const NavBar = () => {
                   boxShadow: profileHovered && !profileOpen ? '0 4px 15px rgba(249,115,22,0.4), 0 0 0 4px rgba(249,115,22,0.1)' : profileOpen ? '0 4px 15px rgba(249,115,22,0.5)' : 'none',
                   border: profileHovered || profileOpen ? '1px solid #fb923c' : '1px solid transparent',
                 }}
-                className={`flex items-center justify-center rounded-full ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
-                <img
-                  src={assets.profile_icon}
-                  style={{
-                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    transform: profileHovered ? 'rotateY(180deg) scale(1.1)' : 'rotateY(0deg)',
-                    filter: profileHovered ? 'brightness(0) invert(0.3) sepia(1) saturate(3) hue-rotate(340deg)' : 'none',
-                  }}
-                  className={scrolled ? "w-3.5" : "w-4"} alt="profile" />
+                className={`flex items-center justify-center rounded-full overflow-hidden ${scrolled ? "w-7 h-7" : "w-8 h-8"}`}>
+                {token && userAvatar
+                  ? <img src={userAvatar} alt='avatar' className='w-full h-full object-cover' />
+                  : <img
+                      src={assets.profile_icon}
+                      style={{
+                        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        transform: profileHovered ? 'rotateY(180deg) scale(1.1)' : 'rotateY(0deg)',
+                        filter: profileHovered ? 'brightness(0) invert(0.3) sepia(1) saturate(3) hue-rotate(340deg)' : 'none',
+                      }}
+                      className={scrolled ? "w-3.5" : "w-4"} alt="profile" />
+                }
               </button>
               <div className={`absolute right-0 top-12 transition-all duration-300 origin-top-right z-50
                 ${profileOpen && token ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}>
@@ -430,9 +433,10 @@ const NavBar = () => {
                   <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
                     {token && userName ? (
                       <>
-                        <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg mb-2">
-                          {userName.charAt(0).toUpperCase()}
-                        </div>
+                        {userAvatar
+                          ? <img src={userAvatar} alt='avatar' className='w-10 h-10 rounded-full object-cover border-2 border-orange-300 mb-2'/>
+                          : <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg mb-2">{userName.charAt(0).toUpperCase()}</div>
+                        }
                         <p className="text-base font-bold text-gray-800 truncate">{userName}</p>
                         <p className="text-xs text-orange-500 capitalize">{role}</p>
                       </>

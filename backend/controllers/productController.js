@@ -21,7 +21,7 @@ const handleImageUpload = async (files) => {
 // POST /api/product/add  (vendor only) — direct add, approved immediately
 const addProduct = async (req, res) => {
     try {
-        const { name, description, price, category, subCategory, sizes, bestseller } = req.body;
+        const { name, description, price, category, subCategory, sizes, bestseller, tags } = req.body;
         const imageUrls = await handleImageUpload(req.files);
         const product = await productModel.create({
             name, description,
@@ -29,6 +29,7 @@ const addProduct = async (req, res) => {
             category, subCategory,
             sizes: sizes ? JSON.parse(sizes) : [],
             bestseller: bestseller === 'true',
+            tags: tags ? JSON.parse(tags) : [],
             image: imageUrls,
             date: Date.now(),
             status: 'approved',
@@ -43,7 +44,7 @@ const addProduct = async (req, res) => {
 // POST /api/product/submit  (vendor) — submit for admin approval
 const submitProduct = async (req, res) => {
     try {
-        const { name, description, price, category, subCategory, sizes, bestseller } = req.body;
+        const { name, description, price, category, subCategory, sizes, bestseller, tags } = req.body;
         const imageUrls = await handleImageUpload(req.files);
         const vendor = await userModel.findById(req.userId).select('name');
         const product = await productModel.create({
@@ -52,6 +53,7 @@ const submitProduct = async (req, res) => {
             category, subCategory,
             sizes: sizes ? JSON.parse(sizes) : [],
             bestseller: bestseller === 'true',
+            tags: tags ? JSON.parse(tags) : [],
             image: imageUrls,
             date: Date.now(),
             status: 'pending',
@@ -155,4 +157,29 @@ const getSingleProduct = async (req, res) => {
     }
 };
 
-export { addProduct, submitProduct, getPendingProducts, approveProduct, rejectProduct, getRejectedProducts, removeProduct, listProducts, myProducts, getSingleProduct };
+// PUT /api/product/edit
+const editProduct = async (req, res) => {
+    try {
+        const { productId, name, description, price, category, subCategory, sizes, bestseller, tags } = req.body;
+        const product = await productModel.findById(productId);
+        if (!product) return res.json({ success: false, message: 'Product not found' });
+        if (req.role === 'vendor' && product.vendorId !== req.userId.toString())
+            return res.json({ success: false, message: 'Unauthorized' });
+        const updates = {
+            name, description,
+            price: Number(price),
+            category, subCategory,
+            sizes: sizes ? JSON.parse(sizes) : product.sizes,
+            tags: tags ? JSON.parse(tags) : product.tags,
+            bestseller: bestseller === 'true' || bestseller === true,
+        };
+        const newImages = await handleImageUpload(req.files);
+        if (newImages.length > 0) updates.image = newImages;
+        await productModel.findByIdAndUpdate(productId, updates);
+        res.json({ success: true, message: 'Product updated' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { addProduct, submitProduct, getPendingProducts, approveProduct, rejectProduct, getRejectedProducts, removeProduct, listProducts, myProducts, getSingleProduct, editProduct };
