@@ -186,6 +186,22 @@ const updateOrderStatus = async (req, res) => {
     }
 };
 
+// POST /api/order/cancel  (user - cancel their own order)
+const cancelOrder = async (req, res) => {
+    try {
+        const { orderId } = req.body;
+        const order = await orderModel.findOne({ _id: orderId, userId: req.userId });
+        if (!order) return res.json({ success: false, message: 'Order not found' });
+        const cancellable = ['Order Placed', 'Packing'];
+        if (!cancellable.includes(order.status))
+            return res.json({ success: false, message: `Cannot cancel order in "${order.status}" status` });
+        await orderModel.findByIdAndUpdate(orderId, { status: 'Cancelled' });
+        res.json({ success: true, message: 'Order cancelled successfully' });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // POST /api/order/update-payment  (admin)
 const updatePayment = async (req, res) => {
     try {
@@ -197,4 +213,4 @@ const updatePayment = async (req, res) => {
     }
 };
 
-export { placeOrder, placeOrderStripe, verifyStripe, userOrders, allOrders, updateStatus, vendorOrders, updateOrderStatus, updatePayment, getVendorAnalytics };
+export { placeOrder, placeOrderStripe, verifyStripe, userOrders, allOrders, updateStatus, vendorOrders, updateOrderStatus, updatePayment, cancelOrder, getVendorAnalytics };

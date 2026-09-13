@@ -80,6 +80,15 @@ const Orders = () => {
         }
     }
 
+    const cancelOrder = async (orderId) => {
+        if (!window.confirm('Are you sure you want to cancel this order?')) return
+        try {
+            const { data } = await axios.post(`${backendUrl}/api/order/cancel`, { orderId }, { headers: { token } })
+            if (data.success) { toast.success('Order cancelled'); loadOrders() }
+            else toast.error(data.message)
+        } catch (e) { toast.error(e.message) }
+    }
+
     const loadReturns = async () => {
         try {
             const { data } = await axios.get(`${backendUrl}/api/return/my`, { headers: { token } })
@@ -162,7 +171,7 @@ const Orders = () => {
                                                 </div>
                                             ))}
                                         </div>
-                                        {order.address && (
+                                                        {order.address && (
                                             <div className='mb-4'>
                                                 <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Delivery Address</p>
                                                 <p className='text-sm text-gray-700'>
@@ -172,10 +181,32 @@ const Orders = () => {
                                                 </p>
                                             </div>
                                         )}
-                                        <div className='flex justify-between text-sm text-gray-600 border-t pt-3'>
-                                            <span>Order ID: <span className='font-mono text-xs text-gray-400'>{order._id?.slice(-10)}</span></span>
-                                            <span className='font-bold text-gray-800'>Total: {currency}{order.amount}</span>
+
+                                        {/* Order Details */}
+                                        <div className='bg-gray-50 rounded-lg p-3 mb-4 grid grid-cols-2 gap-2 text-xs text-gray-600'>
+                                            <div><span className='text-gray-400'>Order ID</span><p className='font-mono font-medium text-gray-700'>{order._id?.slice(-10)}</p></div>
+                                            <div><span className='text-gray-400'>Date</span><p className='font-medium text-gray-700'>{new Date(order.date).toLocaleDateString()}</p></div>
+                                            <div><span className='text-gray-400'>Payment</span><p className='font-medium text-gray-700'>{order.paymentMethod} · {order.payment ? <span className='text-green-600'>Paid</span> : <span className='text-orange-500'>Pending</span>}</p></div>
+                                            <div><span className='text-gray-400'>Total</span><p className='font-bold text-orange-600'>{currency}{order.amount}</p></div>
                                         </div>
+
+                                        {/* Support */}
+                                        <div className='bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4'>
+                                            <p className='text-xs font-semibold text-blue-700 mb-1'>🎧 Need Help?</p>
+                                            <p className='text-xs text-blue-600'>For issues with this order, email us at <span className='font-medium'>support@kalakriti.com</span> with your Order ID <span className='font-mono font-medium'>{order._id?.slice(-10)}</span></p>
+                                        </div>
+
+                                        {/* Cancel Button */}
+                                        {['Order Placed', 'Packing'].includes(order.status) && (
+                                            <button
+                                                onClick={() => cancelOrder(order._id)}
+                                                className='w-full py-2 border-2 border-red-300 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50 transition'>
+                                                ✕ Cancel Order
+                                            </button>
+                                        )}
+                                        {!['Order Placed', 'Packing'].includes(order.status) && order.status !== 'Cancelled' && (
+                                            <p className='text-xs text-center text-gray-400'>Orders can only be cancelled before shipping</p>
+                                        )}
                                     </div>
                                 </div>
                             )}
