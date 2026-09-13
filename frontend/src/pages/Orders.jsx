@@ -108,6 +108,7 @@ const Orders = () => {
             <div className='flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6 flex-wrap'>
                 {[
                     { id: 'orders', label: '📦 My Orders' },
+                    { id: 'cancelled', label: `✕ Cancelled${orders.filter(o => o.status === 'Cancelled').length > 0 ? ` (${orders.filter(o => o.status === 'Cancelled').length})` : ''}` },
                     { id: 'track', label: '🚚 Track Order' },
                     { id: 'address', label: '📍 Addresses' },
                     { id: 'returns', label: '↩️ Returns & Exchanges' },
@@ -130,7 +131,7 @@ const Orders = () => {
                             <p className='text-gray-500'>No orders yet.</p>
                         </div>
                     )}
-                    {orders.map((order, i) => (
+                    {orders.filter(o => o.status !== 'Cancelled').map((order, i) => (
                         <div key={order._id || i} className='border border-gray-200 rounded-xl overflow-hidden shadow-sm'>
                             <div
                                 className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50 cursor-pointer hover:bg-orange-50 transition'
@@ -204,6 +205,57 @@ const Orders = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Cancelled Tab */}
+            {activeTab === 'cancelled' && (
+                <div className='flex flex-col gap-4'>
+                    {orders.filter(o => o.status === 'Cancelled').length === 0 && (
+                        <div className='text-center py-20'>
+                            <p className='text-4xl mb-4'>✅</p>
+                            <p className='text-gray-500'>No cancelled orders.</p>
+                        </div>
+                    )}
+                    {orders.filter(o => o.status === 'Cancelled').map((order, i) => (
+                        <div key={order._id || i} className='border border-red-100 rounded-xl overflow-hidden shadow-sm opacity-80'>
+                            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-50'>
+                                <div className='flex items-center gap-4'>
+                                    <img src={order.items?.[0]?.image?.[0]} className='w-14 h-14 object-cover rounded-lg border border-red-100 grayscale' alt='' />
+                                    <div>
+                                        <p className='font-semibold text-gray-700 text-sm'>
+                                            {order.items?.length} item{order.items?.length > 1 ? 's' : ''}
+                                            <span className='text-gray-400 font-normal'> — {order.items?.[0]?.name}{order.items?.length > 1 ? ` & more` : ''}</span>
+                                        </p>
+                                        <p className='text-xs text-gray-400 mt-0.5'>Ordered: {new Date(order.date).toDateString()}</p>
+                                        <p className='text-xs text-gray-400'>Payment: {order.paymentMethod} · {order.payment ? <span className='text-green-600'>Paid</span> : <span className='text-red-500'>Pending</span>}</p>
+                                    </div>
+                                </div>
+                                <div className='flex items-center gap-3'>
+                                    <p className='font-bold text-gray-500'>{currency}{order.amount}</p>
+                                    <span className='px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600'>Cancelled</span>
+                                </div>
+                            </div>
+                            <div className='p-4 border-t border-red-100'>
+                                <div className='grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3'>
+                                    <div><span className='text-gray-400'>Order ID</span><p className='font-mono font-medium text-gray-700'>{order._id?.slice(-10)}</p></div>
+                                    <div><span className='text-gray-400'>Date</span><p className='font-medium text-gray-700'>{new Date(order.date).toLocaleDateString()}</p></div>
+                                </div>
+                                <div className='flex flex-col gap-2'>
+                                    {order.items?.map((item, j) => (
+                                        <div key={j} className='flex items-center gap-3 bg-gray-50 rounded-lg p-2'>
+                                            <img src={item.image?.[0]} className='w-10 h-10 object-cover rounded-lg border grayscale' alt='' />
+                                            <div className='flex-1'>
+                                                <p className='text-xs font-medium text-gray-700'>{item.name}</p>
+                                                <p className='text-xs text-gray-400'>Size: {item.size} · Qty: {item.quantity}</p>
+                                            </div>
+                                            <p className='text-xs font-semibold text-gray-500'>{currency}{item.price * item.quantity}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     ))}
                 </div>
