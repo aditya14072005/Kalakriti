@@ -27,6 +27,7 @@ import AnimatedBackground from "./components/AnimatedIndianBackground"
 import ProtectedRoute from "./components/ProtectedRoute"
 import IntroAnimation from "./components/IntroAnimation"
 import RecentlyViewed from "./components/RecentlyViewed"
+import FloatingSupport from "./components/FloatingSupport"
 import { ShopContext } from "./context/ShopContext"
 
 
@@ -70,6 +71,7 @@ const App = () => {
           </Routes>
           {!onDashboard && <Footer />}
         </div>
+        {!onDashboard && <FloatingSupport />}
       </>
     </div>
   )

@@ -9,6 +9,7 @@ import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import returnRoutes from './routes/returnRoutes.js';
+import supportRoutes from './routes/supportRoutes.js';
 import { getDeals, getBestsellers } from './controllers/adminController.js';
 import { getRecommendations } from './controllers/recommendationController.js';
 import { trackBehavior } from './controllers/behaviorController.js';
@@ -33,6 +34,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/order', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/return', returnRoutes);
+app.use('/api/support', supportRoutes);
 app.get('/api/deals', getDeals);
 app.get('/api/bestsellers', getBestsellers);
 app.get('/api/recommendations', (req, res, next) => {

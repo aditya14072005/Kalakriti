@@ -25,6 +25,9 @@ const AdminDashboard = () => {
     const [productModal, setProductModal] = useState(null) // product object
     const [vendorRequests, setVendorRequests] = useState([])
     const [returnRequests, setReturnRequests] = useState([])
+    const [supportTickets, setSupportTickets] = useState([])
+    const [activeTicket, setActiveTicket] = useState(null)
+    const [adminReply, setAdminReply] = useState('')
     const [deals, setDeals] = useState([])
     const [dealForm, setDealForm] = useState({ productId: '', dealPrice: '', hours: 24 })
     const [dealSearch, setDealSearch] = useState('')
@@ -82,6 +85,8 @@ const AdminDashboard = () => {
             if (vr.data.success) setVendorRequests(vr.data.requests)
             const rr = await axios.get(`${backendUrl}/api/return/all`, h)
             if (rr.data.success) setReturnRequests(rr.data.requests)
+            const st = await axios.get(`${backendUrl}/api/support/all`, h)
+            if (st.data.success) setSupportTickets(st.data.tickets)
             const dr = await axios.get(`${backendUrl}/api/admin/deals`, h)
             if (dr.data.success) setDeals(dr.data.deals)
             const bs = await axios.get(`${backendUrl}/api/bestsellers`)
@@ -201,6 +206,7 @@ const AdminDashboard = () => {
         { id: 'users', label: '👥 Users' },
         { id: 'products', label: `📦 Products ${pendingProducts.length > 0 ? `(${pendingProducts.length} pending)` : ''}` },
         { id: 'orders', label: '🛒 Orders' },
+        { id: 'support', label: `🎧 Support${supportTickets.filter(t => t.status === 'Open').length > 0 ? ` (${supportTickets.filter(t => t.status === 'Open').length})` : ''}` },
         { id: 'returns', label: '↩️ Returns' },
         { id: 'deals', label: `🏷️ Daily Deals${deals.length > 0 ? ` (${deals.length})` : ''}` },
         { id: 'bestsellers', label: `⭐ Best Sellers (${bestsellers.length})` },
@@ -1128,6 +1134,141 @@ const AdminDashboard = () => {
                                 <li>💡 Recommended tab shows non-bestseller products sorted by order count</li>
                             </ul>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {tab === 'support' && (
+                <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 items-start'>
+                    {/* Ticket List */}
+                    <div className='lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                        <div className='p-4 border-b border-gray-100'>
+                            <p className='font-semibold text-gray-700'>🎧 Support Tickets ({supportTickets.length})</p>
+                        </div>
+                        <div className='flex flex-col divide-y divide-gray-50 max-h-[600px] overflow-y-auto'>
+                            {supportTickets.map((t, i) => (
+                                <div key={i} onClick={() => setActiveTicket(t)}
+                                    className={`px-4 py-3 cursor-pointer hover:bg-orange-50/40 transition ${
+                                        activeTicket?._id === t._id ? 'bg-orange-50 border-l-2 border-orange-400' : ''
+                                    }`}>
+                                    <div className='flex items-center justify-between mb-1'>
+                                        <p className='text-sm font-medium text-gray-800 truncate'>{t.category}</p>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ml-1 ${
+                                            t.status === 'Open' ? 'bg-blue-100 text-blue-600' :
+                                            t.status === 'In Progress' ? 'bg-yellow-100 text-yellow-600' :
+                                            t.status === 'Resolved' ? 'bg-green-100 text-green-600' :
+                                            'bg-gray-100 text-gray-500'
+                                        }`}>{t.status}</span>
+                                    </div>
+                                    <p className='text-xs text-gray-500 truncate'>{t.message}</p>
+                                    <p className='text-[10px] text-gray-400 mt-1'>Order: {t.orderId?.slice(-8)} · {new Date(t.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            ))}
+                            {supportTickets.length === 0 && (
+                                <div className='text-center py-16 text-gray-400'>
+                                    <p className='text-3xl mb-2'>🎧</p>
+                                    <p className='text-sm'>No support tickets yet</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Chat Panel */}
+                    <div className='lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow overflow-hidden flex flex-col' style={{ minHeight: 480 }}>
+                        {!activeTicket ? (
+                            <div className='flex-1 flex items-center justify-center text-gray-400'>
+                                <div className='text-center'>
+                                    <p className='text-4xl mb-3'>💬</p>
+                                    <p className='text-sm'>Select a ticket to view the conversation</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Ticket Header */}
+                                <div className='px-5 py-4 border-b border-gray-100 flex items-center justify-between'>
+                                    <div>
+                                        <p className='font-semibold text-gray-800'>{activeTicket.category}</p>
+                                        <p className='text-xs text-gray-400'>Order: <span className='font-mono'>{activeTicket.orderId?.slice(-10)}</span> · User: {activeTicket.userId?.slice(-8)}</p>
+                                    </div>
+                                    <div className='flex items-center gap-2'>
+                                        <select
+                                            value={activeTicket.status}
+                                            onChange={async (e) => {
+                                                const { data } = await axios.post(`${backendUrl}/api/support/reply/admin`,
+                                                    { ticketId: activeTicket._id, message: `Status updated to: ${e.target.value}`, status: e.target.value }, h)
+                                                if (data.success) { setActiveTicket(data.ticket); fetchAll() }
+                                                else toast.error(data.message)
+                                            }}
+                                            className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
+                                            <option>Open</option>
+                                            <option>In Progress</option>
+                                            <option>Resolved</option>
+                                            <option>Closed</option>
+                                        </select>
+                                        {activeTicket.category === 'Cancel Order' && activeTicket.status !== 'Resolved' && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm('Cancel this order and resolve the ticket?')) return
+                                                    const { data } = await axios.post(`${backendUrl}/api/support/reply/admin`,
+                                                        { ticketId: activeTicket._id, message: 'Your order has been cancelled as requested. Refund (if applicable) will be processed within 5-7 business days.', status: 'Resolved', cancelOrder: true }, h)
+                                                    if (data.success) { toast.success('Order cancelled & ticket resolved'); setActiveTicket(data.ticket); fetchAll() }
+                                                    else toast.error(data.message)
+                                                }}
+                                                className='text-xs bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition'>
+                                                ✕ Cancel Order
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Messages */}
+                                <div className='flex-1 overflow-y-auto p-4 flex flex-col gap-2'>
+                                    <div className='flex justify-end'>
+                                        <div className='bg-orange-500 text-white text-xs rounded-2xl rounded-tr-sm px-3 py-2 max-w-[70%]'>
+                                            <p className='font-medium mb-0.5 text-orange-100 text-[10px]'>{activeTicket.category}</p>
+                                            {activeTicket.message}
+                                        </div>
+                                    </div>
+                                    {activeTicket.replies.map((r, i) => (
+                                        <div key={i} className={`flex ${r.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`text-xs rounded-2xl px-3 py-2 max-w-[70%] ${
+                                                r.sender === 'user'
+                                                    ? 'bg-orange-500 text-white rounded-tr-sm'
+                                                    : 'bg-gray-100 text-gray-800 rounded-tl-sm'
+                                            }`}>
+                                                {r.sender === 'admin' && <p className='text-[10px] text-gray-500 mb-0.5 font-medium'>You (Admin)</p>}
+                                                {r.message}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Reply Input */}
+                                {!['Resolved', 'Closed'].includes(activeTicket.status) && (
+                                    <div className='flex gap-2 p-3 border-t border-gray-100'>
+                                        <input value={adminReply} onChange={e => setAdminReply(e.target.value)}
+                                            onKeyDown={async (e) => {
+                                                if (e.key !== 'Enter' || !adminReply.trim()) return
+                                                const { data } = await axios.post(`${backendUrl}/api/support/reply/admin`,
+                                                    { ticketId: activeTicket._id, message: adminReply, status: 'In Progress' }, h)
+                                                if (data.success) { setActiveTicket(data.ticket); setAdminReply(''); fetchAll() }
+                                                else toast.error(data.message)
+                                            }}
+                                            placeholder='Type reply and press Enter...'
+                                            className='flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400' />
+                                        <button
+                                            onClick={async () => {
+                                                if (!adminReply.trim()) return
+                                                const { data } = await axios.post(`${backendUrl}/api/support/reply/admin`,
+                                                    { ticketId: activeTicket._id, message: adminReply, status: 'In Progress' }, h)
+                                                if (data.success) { setActiveTicket(data.ticket); setAdminReply(''); fetchAll() }
+                                                else toast.error(data.message)
+                                            }}
+                                            className='bg-orange-500 text-white px-3 py-2 rounded-xl text-sm hover:bg-orange-600 transition'>➤</button>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             )}

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext'
 import Title from '../components/Title'
+import SupportChat from '../components/SupportChat'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
@@ -66,6 +67,7 @@ const Orders = () => {
     const [returnSubmitted, setReturnSubmitted] = useState(false)
     const [myReturns, setMyReturns] = useState([])
     const [activeReturnTab, setActiveReturnTab] = useState('submit')
+    const [supportModal, setSupportModal] = useState(null) // { orderId, orderName }
 
     const loadOrders = async () => {
         try {
@@ -190,23 +192,15 @@ const Orders = () => {
                                             <div><span className='text-gray-400'>Total</span><p className='font-bold text-orange-600'>{currency}{order.amount}</p></div>
                                         </div>
 
-                                        {/* Support */}
-                                        <div className='bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4'>
-                                            <p className='text-xs font-semibold text-blue-700 mb-1'>🎧 Need Help?</p>
-                                            <p className='text-xs text-blue-600'>For issues with this order, email us at <span className='font-medium'>support@kalakriti.com</span> with your Order ID <span className='font-mono font-medium'>{order._id?.slice(-10)}</span></p>
-                                        </div>
-
-                                        {/* Cancel Button */}
-                                        {['Order Placed', 'Packing'].includes(order.status) && (
-                                            <button
-                                                onClick={() => cancelOrder(order._id)}
-                                                className='w-full py-2 border-2 border-red-300 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50 transition'>
-                                                ✕ Cancel Order
-                                            </button>
-                                        )}
-                                        {!['Order Placed', 'Packing'].includes(order.status) && order.status !== 'Cancelled' && (
-                                            <p className='text-xs text-center text-gray-400'>Orders can only be cancelled before shipping</p>
-                                        )}
+                                        {/* Support Button */}
+                                        <button
+                                            onClick={() => setSupportModal({
+                                                orderId: order._id,
+                                                orderName: `${order.items?.[0]?.name}${order.items?.length > 1 ? ` +${order.items.length - 1} more` : ''}`
+                                            })}
+                                            className='w-full py-2 border-2 border-orange-300 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 transition'>
+                                            🎧 Contact Support
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -377,6 +371,22 @@ const Orders = () => {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Support Chat Modal */}
+            {supportModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4'
+                    onClick={() => setSupportModal(null)}>
+                    <div className='w-full max-w-sm h-[520px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden'
+                        onClick={e => e.stopPropagation()}>
+                        <SupportChat
+                            orderId={supportModal.orderId}
+                            orderName={supportModal.orderName}
+                            orders={orders}
+                            onClose={() => setSupportModal(null)}
+                        />
+                    </div>
                 </div>
             )}
         </div>
