@@ -70,23 +70,6 @@ const PlaceOrder = () => {
                 const { data } = await axios.post(`${backendUrl}/api/order/stripe`, orderData, { headers: { token } })
                 if (data.success) window.location.replace(data.session_url)
                 else toast.error(data.message)
-            } else if (method === 'razorpay') {
-                const { data } = await axios.post(`${backendUrl}/api/order/razorpay`, orderData, { headers: { token } })
-                if (data.success) {
-                    const options = {
-                        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                        amount: data.razorpayOrder.amount,
-                        currency: 'INR',
-                        name: 'KALAKRITI',
-                        order_id: data.razorpayOrder.id,
-                        handler: async (response) => {
-                            const verify = await axios.post(`${backendUrl}/api/order/verifyRazorpay`,
-                                { razorpay_order_id: response.razorpay_order_id }, { headers: { token } })
-                            if (verify.data.success) { setCartItems({}); navigate('/orders'); toast.success('Payment successful!') }
-                        }
-                    }
-                    new window.Razorpay(options).open()
-                }
             }
         } catch (error) {
             toast.error(error.message)
@@ -150,10 +133,6 @@ const PlaceOrder = () => {
                         <div onClick={() => setMethod('stripe')} className={`flex items-center gap-3 border p-2 px-3 cursor-pointer ${method === 'stripe' ? 'border-green-400' : ''}`}>
                             <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'stripe' ? 'bg-green-400' : ''}`}></p>
                             <img src={assets.stripe_logo} className='h-5 mx-4' alt="" />
-                        </div>
-                        <div onClick={() => setMethod('razorpay')} className={`flex items-center gap-3 border p-2 px-3 cursor-pointer ${method === 'razorpay' ? 'border-green-400' : ''}`}>
-                            <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'razorpay' ? 'bg-green-400' : ''}`}></p>
-                            <img src={assets.razorpay_logo} className='h-5 mx-4' alt="" />
                         </div>
                         <div onClick={() => setMethod('cod')} className={`flex items-center gap-3 border p-2 px-3 cursor-pointer ${method === 'cod' ? 'border-green-400' : ''}`}>
                             <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'cod' ? 'bg-green-400' : ''}`}></p>
