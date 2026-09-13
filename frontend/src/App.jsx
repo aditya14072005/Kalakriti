@@ -19,7 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard"
 import Wishlist from "./pages/Wishlist"
 import Profile from "./pages/Profile"
 import AuthCallback from "./pages/AuthCallback"
-import DailyDeals from "./pages/DailyDeals"
+import BestSellers from "./pages/BestSellers"
 
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
@@ -57,6 +57,7 @@ const App = () => {
             <Route path="/product/:productId" element={<Product />} />
             <Route path="/login" element={<Login />} />
             <Route path="/vendor" element={<Vendor />} />
+            <Route path="/bestsellers" element={<BestSellers />} />
             <Route path="/daily-deals" element={<DailyDeals />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/wishlist" element={<ProtectedRoute allowedRoles={['customer']}><Wishlist /></ProtectedRoute>} />

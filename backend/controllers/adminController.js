@@ -228,7 +228,7 @@ const getBestsellers = async (req, res) => {
             .map(([id]) => id)
             .filter(isValidId);
 
-        const topIds = sortedIds.filter(id => !adminIds.has(id)).slice(0, Math.max(0, 5 - adminPicked.length));
+        const topIds = sortedIds.filter(id => !adminIds.has(id));
         const topProducts = topIds.length
             ? await productModel.find({ _id: { $in: topIds }, status: 'approved' }).lean()
             : [];
@@ -242,7 +242,7 @@ const getBestsellers = async (req, res) => {
             .map(p => ({ ...p, orderCount: countMap[p._id.toString()] || 0 }))
             .sort((a, b) => b.orderCount - a.orderCount);
 
-        const result = [...adminPicked, ...topProducts].slice(0, 5);
+        const result = [...adminPicked, ...topProducts];
         res.json({ success: true, products: result, recommendations });
     } catch (error) {
         res.json({ success: false, message: error.message });

@@ -36,7 +36,7 @@ const Home = () => {
       )}
       <LatestCollection/>
       <Recommendations mode='home' />
-      <BestSeller/>
+      <BestSeller limit={5} />
       <OurPolicy/>
       <NewsletterBox/>
     </div>
