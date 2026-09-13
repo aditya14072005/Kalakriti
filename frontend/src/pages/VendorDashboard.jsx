@@ -18,6 +18,11 @@ const VendorDashboard = () => {
     const [pwLoading, setPwLoading] = useState(false)
     const [returnRequests, setReturnRequests] = useState([])
     const [stockInputs, setStockInputs] = useState({})
+    const [orderPage, setOrderPage] = useState(1)
+    const [orderSubTab, setOrderSubTab] = useState('active')
+    const [orderSearch, setOrderSearch] = useState('')
+    const [expandedOrder, setExpandedOrder] = useState(null)
+    const VENDOR_PAGE_SIZE = 10
 
     const [productForm, setProductForm] = useState({
         name: '', description: '', price: '', category: 'Women', subCategory: 'Kurtiwear', sizes: [], bestseller: false, tags: []
@@ -658,60 +663,121 @@ return (
                 )}
 
                 {/* Orders Tab */}
-                {activeTab === 'orders' && (
-                    <div className='bg-white rounded-xl shadow-sm border border-gray-200'>
-                        <div className='p-6 border-b border-gray-200'>
-                            <h3 className='text-lg font-semibold text-gray-800'>Order Management</h3>
-                        </div>
-                        <div className='p-6'>
-                            {orders.length > 0 ? (
-                                <div className='space-y-4'>
-                                    {orders.map(order => (
-                                        <div key={order._id} className='border border-gray-200 rounded-lg p-6'>
-                                            <div className='flex items-center justify-between mb-4'>
-                                                <div>
-                                                    <h4 className='font-semibold text-gray-800'>Order #{order._id.slice(-8)}</h4>
-                                                    <p className='text-sm text-gray-600'>{order.date}</p>
-                                                </div>
-                                                <div className='text-right'>
-                                                    <p className='font-bold text-gray-800'>₹{order.amount}</p>
-                                                    <select
-                                                        value={order.status}
-                                                        onChange={(e) => updateOrderStatus(order._id, e.target.value)}
-                                                        className='mt-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
-                                                    >
-                                                        <option value='Processing'>Processing</option>
-                                                        <option value='Shipped'>Shipped</option>
-                                                        <option value='Delivered'>Delivered</option>
-                                                        <option value='Cancelled'>Cancelled</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div className='space-y-2'>
-                                                {order.items?.map((item, idx) => (
-                                                    <div key={idx} className='flex items-center space-x-4 text-sm'>
-                                                        <img src={item.image} className='w-12 h-12 object-cover rounded' alt="" />
-                                                        <div className='flex-1'>
-                                                            <p className='font-medium text-gray-800'>{item.name}</p>
-                                                            <p className='text-gray-600'>Qty: {item.quantity}</p>
-                                                        </div>
-                                                        <p className='font-semibold text-gray-800'>₹{item.price * item.quantity}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                {activeTab === 'orders' && (() => {
+                    const activeOrders = orders.filter(o => o.status !== 'Cancelled')
+                    const cancelledOrders = orders.filter(o => o.status === 'Cancelled')
+                    const pool = orderSubTab === 'active' ? activeOrders : cancelledOrders
+                    const filtered = pool.filter(o =>
+                        o._id.toLowerCase().includes(orderSearch.toLowerCase()) ||
+                        o.items?.some(i => i.name?.toLowerCase().includes(orderSearch.toLowerCase()))
+                    )
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / VENDOR_PAGE_SIZE))
+                    const page = Math.min(orderPage, totalPages)
+                    const pageOrders = filtered.slice((page - 1) * VENDOR_PAGE_SIZE, page * VENDOR_PAGE_SIZE)
+
+                    return (
+                        <div className='space-y-4'>
+                            {/* Sub-tabs + search */}
+                            <div className='flex flex-wrap items-center gap-3'>
+                                <div className='flex gap-1 bg-gray-100 p-1 rounded-xl'>
+                                    {[{ id: 'active', label: `🛒 Active (${activeOrders.length})` }, { id: 'cancelled', label: `✕ Cancelled (${cancelledOrders.length})` }].map(st => (
+                                        <button key={st.id} onClick={() => { setOrderSubTab(st.id); setOrderPage(1); setExpandedOrder(null) }}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                                                orderSubTab === st.id ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                                            }`}>{st.label}</button>
                                     ))}
                                 </div>
-                            ) : (
-                                <div className='text-center py-12 text-gray-500'>
-                                    <span className='text-6xl mb-4 block'>📋</span>
-                                    <p className='text-lg'>No orders yet</p>
-                                    <p className='text-sm'>Orders from your business customers will appear here</p>
+                                <input placeholder='Search by order ID or item...'
+                                    value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1) }}
+                                    className='ml-auto w-56 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400' />
+                            </div>
+
+                            <div className='bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden'>
+                                <div className='p-4 border-b border-gray-200 flex items-center justify-between'>
+                                    <h3 className='font-semibold text-gray-800 text-sm'>
+                                        {orderSubTab === 'active' ? '🛒 Active' : '✕ Cancelled'} Orders
+                                        <span className='text-gray-400 font-normal ml-1'>({filtered.length})</span>
+                                    </h3>
+                                    <p className='text-xs text-gray-400'>Page {page} of {totalPages}</p>
                                 </div>
-                            )}
+
+                                {pageOrders.length === 0 ? (
+                                    <div className='text-center py-12 text-gray-500'>
+                                        <span className='text-5xl mb-3 block'>📋</span>
+                                        <p>No {orderSubTab} orders</p>
+                                    </div>
+                                ) : (
+                                    <div className='divide-y divide-gray-100'>
+                                        {pageOrders.map(order => (
+                                            <div key={order._id} className='p-4'>
+                                                <div className='flex items-center justify-between mb-3 cursor-pointer'
+                                                    onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}>
+                                                    <div>
+                                                        <p className='font-semibold text-gray-800 text-sm'>Order #{order._id.slice(-8)}
+                                                            <span className='text-gray-400 font-normal ml-1'>{expandedOrder === order._id ? '▲' : '▼'}</span>
+                                                        </p>
+                                                        <p className='text-xs text-gray-500'>{new Date(order.date).toLocaleDateString()} · {order.items?.length} item(s)</p>
+                                                    </div>
+                                                    <div className='flex items-center gap-3'>
+                                                        <p className='font-bold text-gray-800'>₹{order.amount}</p>
+                                                        {orderSubTab === 'cancelled'
+                                                            ? <span className='px-2 py-1 text-xs rounded-full bg-red-100 text-red-700'>Cancelled</span>
+                                                            : <select value={order.status} onClick={e => e.stopPropagation()}
+                                                                onChange={(e) => updateOrderStatus(order._id, e.target.value)}
+                                                                className='px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                                                <option value='Order Placed'>Order Placed</option>
+                                                                <option value='Packing'>Packing</option>
+                                                                <option value='Shipped'>Shipped</option>
+                                                                <option value='Out for Delivery'>Out for Delivery</option>
+                                                                <option value='Delivered'>Delivered</option>
+                                                                <option value='Cancelled'>Cancelled</option>
+                                                            </select>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                {expandedOrder === order._id && (
+                                                    <div className='mt-2 space-y-2 pl-2 border-l-2 border-blue-100'>
+                                                        {order.items?.map((item, idx) => (
+                                                            <div key={idx} className='flex items-center gap-3 bg-gray-50 rounded-lg p-2'>
+                                                                <img src={item.image?.[0] || item.image} className='w-10 h-10 object-cover rounded border' alt='' />
+                                                                <div className='flex-1'>
+                                                                    <p className='text-xs font-medium text-gray-800'>{item.name}</p>
+                                                                    <p className='text-xs text-gray-500'>Size: {item.size} · Qty: {item.quantity}</p>
+                                                                </div>
+                                                                <p className='text-xs font-semibold text-blue-600'>₹{item.price * item.quantity}</p>
+                                                            </div>
+                                                        ))}
+                                                        {order.address && (
+                                                            <p className='text-xs text-gray-500 pt-1'>
+                                                                📍 {order.address.firstName} {order.address.lastName}, {order.address.city}, {order.address.state}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className='flex items-center justify-center gap-2 p-4 border-t border-gray-100'>
+                                        <button onClick={() => setOrderPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                                            className='px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition'>← Prev</button>
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                                            <button key={n} onClick={() => setOrderPage(n)}
+                                                className={`w-8 h-8 text-xs rounded-lg border transition ${
+                                                    n === page ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-200 hover:bg-gray-50'
+                                                }`}>{n}</button>
+                                        ))}
+                                        <button onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                                            className='px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition'>Next →</button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                })()}
 
                 {/* Analytics Tab */}
                 {activeTab === 'analytics' && (

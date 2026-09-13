@@ -22,6 +22,11 @@ const AdminDashboard = () => {
     const [rejectModal, setRejectModal] = useState(null) // productId
     const [rejectReason, setRejectReason] = useState('')
     const [expandedOrder, setExpandedOrder] = useState(null)
+    const [orderPage, setOrderPage] = useState(1)
+    const [orderSubTab, setOrderSubTab] = useState('active')
+    const [orderSearch, setOrderSearch] = useState('')
+    const [ticketOrderModal, setTicketOrderModal] = useState(null)
+    const ORDER_PAGE_SIZE = 10
     const [productModal, setProductModal] = useState(null) // product object
     const [vendorRequests, setVendorRequests] = useState([])
     const [returnRequests, setReturnRequests] = useState([])
@@ -784,102 +789,148 @@ const AdminDashboard = () => {
             )}
 
             {/* Orders */}
-            {tab === 'orders' && (
-                <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
-                    <div className='p-4 border-b border-gray-100'>
-                        <p className='font-semibold text-gray-700'>All Orders ({orders.length})</p>
-                    </div>
-                    <div className='overflow-x-auto'>
-                        <table className='w-full text-sm'>
-                            <thead className='bg-gray-50 text-gray-500 text-xs uppercase'>
-                                <tr>
-                                    <th className='px-4 py-3 text-left'>Order ID</th>
-                                    <th className='px-4 py-3 text-left'>Items</th>
-                                    <th className='px-4 py-3 text-left'>Amount</th>
-                                    <th className='px-4 py-3 text-left'>Payment</th>
-                                    <th className='px-4 py-3 text-left'>Method</th>
-                                    <th className='px-4 py-3 text-left'>Status</th>
-                                    <th className='px-4 py-3 text-left'>Date</th>
-                                    <th className='px-4 py-3 text-left'>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className='divide-y divide-gray-50'>
-                                {orders.map((o, i) => (
-                                    <React.Fragment key={i}>
-                                        <tr className='hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setExpandedOrder(expandedOrder === i ? null : i)}>
-                                            <td className='px-4 py-3 text-gray-400 text-xs font-mono'>{o._id.slice(-8)} <span className='text-gray-300'>{expandedOrder === i ? '▲' : '▼'}</span></td>
-                                            <td className='px-4 py-3 text-gray-600'>{o.items?.length || 0} items</td>
-                                            <td className='px-4 py-3 font-semibold text-orange-600'>₹{o.amount}</td>
-                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => updateOrderPayment(o._id, !o.payment)}
-                                                    className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer border transition ${
-                                                        o.payment
-                                                            ? 'bg-green-100 text-green-600 border-green-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
-                                                            : 'bg-red-100 text-red-500 border-red-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
-                                                    }`}>
-                                                    {o.payment ? 'Paid ✓' : 'Unpaid ✗'}
-                                                </button>
-                                            </td>
-                                            <td className='px-4 py-3 text-gray-500 text-xs'>{o.paymentMethod}</td>
-                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
-                                                <select value={o.status || 'Order Placed'} onChange={e => updateOrderStatus(o._id, e.target.value)}
-                                                    className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
-                                                    {['Order Placed', 'Packing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'].map(s => (
-                                                        <option key={s}>{s}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className='px-4 py-3 text-gray-400 text-xs'>{new Date(o.date).toLocaleDateString()}</td>
-                                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
-                                                <button onClick={() => deleteOrder(o._id)}
-                                                    className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition'>
-                                                    Delete
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {expandedOrder === i && (
-                                            <tr>
-                                                <td colSpan={8} className='bg-orange-50/40 px-6 py-4'>
-                                                    <div className='grid sm:grid-cols-2 gap-4'>
-                                                        <div>
-                                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Items</p>
-                                                            <div className='flex flex-col gap-2'>
-                                                                {o.items?.map((item, j) => (
-                                                                    <div key={j} className='flex items-center gap-3 bg-white rounded-lg p-2 border border-gray-100'>
-                                                                        <img src={item.image?.[0]} className='w-10 h-10 object-cover rounded border' alt='' />
-                                                                        <div className='flex-1'>
-                                                                            <p className='text-xs font-medium text-gray-800'>{item.name}</p>
-                                                                            <p className='text-xs text-gray-400'>Size: {item.size} · Qty: {item.quantity}</p>
-                                                                        </div>
-                                                                        <p className='text-xs font-semibold text-orange-600'>₹{item.price * item.quantity}</p>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+            {tab === 'orders' && (() => {
+                const activeOrders = orders.filter(o => o.status !== 'Cancelled')
+                const cancelledOrders = orders.filter(o => o.status === 'Cancelled')
+                const pool = orderSubTab === 'active' ? activeOrders : cancelledOrders
+                const filtered = pool.filter(o =>
+                    o._id.toLowerCase().includes(orderSearch.toLowerCase()) ||
+                    o.items?.some(i => i.name?.toLowerCase().includes(orderSearch.toLowerCase()))
+                )
+                const totalPages = Math.max(1, Math.ceil(filtered.length / ORDER_PAGE_SIZE))
+                const page = Math.min(orderPage, totalPages)
+                const pageOrders = filtered.slice((page - 1) * ORDER_PAGE_SIZE, page * ORDER_PAGE_SIZE)
+
+                const OrderRow = ({ o, i }) => (
+                    <React.Fragment>
+                        <tr className='hover:bg-orange-50/30 transition cursor-pointer' onClick={() => setExpandedOrder(expandedOrder === o._id ? null : o._id)}>
+                            <td className='px-4 py-3 text-gray-400 text-xs font-mono'>{o._id.slice(-8)} <span className='text-gray-300'>{expandedOrder === o._id ? '▲' : '▼'}</span></td>
+                            <td className='px-4 py-3 text-gray-600 text-xs'>{o.items?.length || 0} items</td>
+                            <td className='px-4 py-3 font-semibold text-orange-600 text-xs'>₹{o.amount}</td>
+                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                <button onClick={() => updateOrderPayment(o._id, !o.payment)}
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer border transition ${
+                                        o.payment ? 'bg-green-100 text-green-600 border-green-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                                        : 'bg-red-100 text-red-500 border-red-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
+                                    }`}>{o.payment ? 'Paid ✓' : 'Unpaid ✗'}</button>
+                            </td>
+                            <td className='px-4 py-3 text-gray-500 text-xs'>{o.paymentMethod}</td>
+                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                {orderSubTab === 'cancelled'
+                                    ? <span className='px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-600'>Cancelled</span>
+                                    : <select value={o.status || 'Order Placed'} onChange={e => updateOrderStatus(o._id, e.target.value)}
+                                        className='text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400'>
+                                        {['Order Placed', 'Packing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+                                    </select>
+                                }
+                            </td>
+                            <td className='px-4 py-3 text-gray-400 text-xs'>{new Date(o.date).toLocaleDateString()}</td>
+                            <td className='px-4 py-3' onClick={e => e.stopPropagation()}>
+                                <button onClick={() => deleteOrder(o._id)}
+                                    className='text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition'>Delete</button>
+                            </td>
+                        </tr>
+                        {expandedOrder === o._id && (
+                            <tr>
+                                <td colSpan={8} className='bg-orange-50/40 px-6 py-4'>
+                                    <div className='grid sm:grid-cols-2 gap-4'>
+                                        <div>
+                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Items</p>
+                                            <div className='flex flex-col gap-2'>
+                                                {o.items?.map((item, j) => (
+                                                    <div key={j} className='flex items-center gap-3 bg-white rounded-lg p-2 border border-gray-100'>
+                                                        <img src={item.image?.[0]} className='w-10 h-10 object-cover rounded border' alt='' />
+                                                        <div className='flex-1'>
+                                                            <p className='text-xs font-medium text-gray-800'>{item.name}</p>
+                                                            <p className='text-xs text-gray-400'>Size: {item.size} · Qty: {item.quantity}</p>
                                                         </div>
-                                                        <div>
-                                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Delivery Address</p>
-                                                            {o.address && (
-                                                                <p className='text-xs text-gray-600 leading-relaxed'>
-                                                                    {o.address.firstName} {o.address.lastName}<br/>
-                                                                    {o.address.street}, {o.address.city}<br/>
-                                                                    {o.address.state} {o.address.zipcode}, {o.address.country}<br/>
-                                                                    📞 {o.address.phone}
-                                                                </p>
-                                                            )}
-                                                        </div>
+                                                        <p className='text-xs font-semibold text-orange-600'>₹{item.price * item.quantity}</p>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </React.Fragment>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Delivery Address</p>
+                                            {o.address && (
+                                                <p className='text-xs text-gray-600 leading-relaxed'>
+                                                    {o.address.firstName} {o.address.lastName}<br/>
+                                                    {o.address.street}, {o.address.city}<br/>
+                                                    {o.address.state} {o.address.zipcode}, {o.address.country}<br/>
+                                                    📞 {o.address.phone}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                    </React.Fragment>
+                )
+
+                return (
+                    <div className='space-y-4'>
+                        {/* Sub-tabs + search */}
+                        <div className='flex flex-wrap items-center gap-3'>
+                            <div className='flex gap-1 bg-gray-100 p-1 rounded-xl'>
+                                {[{ id: 'active', label: `🛒 Active (${activeOrders.length})` }, { id: 'cancelled', label: `✕ Cancelled (${cancelledOrders.length})` }].map(st => (
+                                    <button key={st.id} onClick={() => { setOrderSubTab(st.id); setOrderPage(1); setExpandedOrder(null) }}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                                            orderSubTab === st.id ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:text-gray-700'
+                                        }`}>{st.label}</button>
                                 ))}
-                            </tbody>
-                        </table>
-                        {orders.length === 0 && <p className='text-center py-10 text-gray-400'>No orders yet</p>}
+                            </div>
+                            <input placeholder='Search by order ID or item name...'
+                                value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1) }}
+                                className='ml-auto w-64 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-400' />
+                        </div>
+
+                        <div className='bg-white rounded-2xl border border-gray-100 shadow overflow-hidden'>
+                            <div className='p-4 border-b border-gray-100 flex items-center justify-between'>
+                                <p className='font-semibold text-gray-700 text-sm'>
+                                    {orderSubTab === 'active' ? '🛒' : '✕'} {orderSubTab === 'active' ? 'Active' : 'Cancelled'} Orders
+                                    <span className='text-gray-400 font-normal ml-1'>({filtered.length})</span>
+                                </p>
+                                <p className='text-xs text-gray-400'>Page {page} of {totalPages}</p>
+                            </div>
+                            <div className='overflow-x-auto'>
+                                <table className='w-full text-sm'>
+                                    <thead className='bg-gray-50 text-gray-500 text-xs uppercase'>
+                                        <tr>
+                                            <th className='px-4 py-3 text-left'>Order ID</th>
+                                            <th className='px-4 py-3 text-left'>Items</th>
+                                            <th className='px-4 py-3 text-left'>Amount</th>
+                                            <th className='px-4 py-3 text-left'>Payment</th>
+                                            <th className='px-4 py-3 text-left'>Method</th>
+                                            <th className='px-4 py-3 text-left'>Status</th>
+                                            <th className='px-4 py-3 text-left'>Date</th>
+                                            <th className='px-4 py-3 text-left'>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className='divide-y divide-gray-50'>
+                                        {pageOrders.map((o, i) => <OrderRow key={o._id} o={o} i={i} />)}
+                                    </tbody>
+                                </table>
+                                {filtered.length === 0 && <p className='text-center py-10 text-gray-400'>No orders found</p>}
+                            </div>
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className='flex items-center justify-center gap-2 p-4 border-t border-gray-100'>
+                                    <button onClick={() => setOrderPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                                        className='px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition'>← Prev</button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                                        <button key={n} onClick={() => setOrderPage(n)}
+                                            className={`w-8 h-8 text-xs rounded-lg border transition ${
+                                                n === page ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 hover:bg-gray-50'
+                                            }`}>{n}</button>
+                                    ))}
+                                    <button onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                                        className='px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition'>Next →</button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            })()}
             {/* Daily Deals */}
             {tab === 'deals' && (
                 <div className='space-y-6'>
@@ -1191,6 +1242,14 @@ const AdminDashboard = () => {
                                         <p className='text-xs text-gray-400'>Order: <span className='font-mono'>{activeTicket.orderId?.slice(-10)}</span> · User: {activeTicket.userId?.slice(-8)}</p>
                                     </div>
                                     <div className='flex items-center gap-2'>
+                                        <button
+                                            onClick={() => {
+                                                const o = orders.find(x => x._id === activeTicket.orderId)
+                                                setTicketOrderModal(o || { _id: activeTicket.orderId, _notFound: true })
+                                            }}
+                                            className='text-xs border border-blue-200 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50 transition'>
+                                            📦 View Order
+                                        </button>
                                         <select
                                             value={activeTicket.status}
                                             onChange={async (e) => {
@@ -1332,6 +1391,84 @@ const AdminDashboard = () => {
                 </div>
             )}
             </div>
+
+            {/* Ticket Order Modal */}
+            {ticketOrderModal && (
+                <div className='fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4' onClick={() => setTicketOrderModal(null)}>
+                    <div className='bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto' onClick={e => e.stopPropagation()}>
+                        <div className='flex items-center justify-between'>
+                            <h3 className='text-lg font-semibold text-gray-800'>📦 Order Details</h3>
+                            <button onClick={() => setTicketOrderModal(null)} className='text-gray-400 hover:text-gray-600 text-xl leading-none'>✕</button>
+                        </div>
+                        {ticketOrderModal._notFound ? (
+                            <p className='text-sm text-gray-500 text-center py-6'>Order not found in current data. It may have been deleted.</p>
+                        ) : (
+                            <>
+                                <div className='grid grid-cols-2 gap-3 text-xs'>
+                                    <div><p className='text-gray-400'>Order ID</p><p className='font-mono font-medium text-gray-700'>{ticketOrderModal._id?.slice(-10)}</p></div>
+                                    <div><p className='text-gray-400'>Date</p><p className='font-medium text-gray-700'>{new Date(ticketOrderModal.date).toLocaleDateString()}</p></div>
+                                    <div><p className='text-gray-400'>Amount</p><p className='font-bold text-orange-600'>₹{ticketOrderModal.amount}</p></div>
+                                    <div><p className='text-gray-400'>Payment</p><p className='font-medium'>{ticketOrderModal.payment ? <span className='text-green-600'>Paid</span> : <span className='text-red-500'>Unpaid</span>}</p></div>
+                                </div>
+                                <div>
+                                    <p className='text-xs font-semibold text-gray-500 uppercase mb-2'>Items</p>
+                                    <div className='flex flex-col gap-2'>
+                                        {ticketOrderModal.items?.map((item, j) => (
+                                            <div key={j} className='flex items-center gap-3 bg-gray-50 rounded-lg p-2'>
+                                                <img src={item.image?.[0]} className='w-10 h-10 object-cover rounded border' alt='' />
+                                                <div className='flex-1'>
+                                                    <p className='text-xs font-medium text-gray-800'>{item.name}</p>
+                                                    <p className='text-xs text-gray-400'>Size: {item.size} · Qty: {item.quantity}</p>
+                                                </div>
+                                                <p className='text-xs font-semibold text-orange-600'>₹{item.price * item.quantity}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                {ticketOrderModal.address && (
+                                    <div>
+                                        <p className='text-xs font-semibold text-gray-500 uppercase mb-1'>Delivery Address</p>
+                                        <p className='text-xs text-gray-600 leading-relaxed'>
+                                            {ticketOrderModal.address.firstName} {ticketOrderModal.address.lastName}<br/>
+                                            {ticketOrderModal.address.street}, {ticketOrderModal.address.city}, {ticketOrderModal.address.state} {ticketOrderModal.address.zipcode}<br/>
+                                            {ticketOrderModal.address.country} · 📞 {ticketOrderModal.address.phone}
+                                        </p>
+                                    </div>
+                                )}
+                                <div className='border-t border-gray-100 pt-3 flex flex-wrap gap-2'>
+                                    <p className='text-xs font-semibold text-gray-500 w-full mb-1'>Quick Actions</p>
+                                    <select
+                                        value={ticketOrderModal.status || 'Order Placed'}
+                                        onChange={async (e) => {
+                                            await updateOrderStatus(ticketOrderModal._id, e.target.value)
+                                            setTicketOrderModal(o => ({ ...o, status: e.target.value }))
+                                        }}
+                                        className='text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400'>
+                                        {['Order Placed', 'Packing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+                                    </select>
+                                    <button
+                                        onClick={async () => {
+                                            await updateOrderPayment(ticketOrderModal._id, !ticketOrderModal.payment)
+                                            setTicketOrderModal(o => ({ ...o, payment: !o.payment }))
+                                        }}
+                                        className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                                            ticketOrderModal.payment
+                                                ? 'border-red-200 text-red-500 hover:bg-red-50'
+                                                : 'border-green-200 text-green-600 hover:bg-green-50'
+                                        }`}>
+                                        {ticketOrderModal.payment ? 'Mark Unpaid' : 'Mark Paid'}
+                                    </button>
+                                    <button
+                                        onClick={() => { setTab('orders'); setTicketOrderModal(null) }}
+                                        className='text-xs border border-blue-200 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition'>
+                                        Open in Orders Tab →
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
